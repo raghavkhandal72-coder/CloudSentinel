@@ -1,0 +1,10 @@
+[
+    {"resource": "AWS IAM User: backup-svc", "issue": "User has direct inline policies attached (AdministratorAccess)", "severity": "High"},
+    {"resource": "AWS S3: company-prod-backups", "issue": "Bucket does not block all public access", "severity": "Critical"},
+    {"resource": "AWS EC2 SG: sg-01928374 (web-dmz)", "issue": "Allows ingress from 0.0.0.0/0 on sensitive port 22", "severity": "Critical"},
+    {"resource": "AWS CloudTrail", "issue": "No multi-region CloudTrail is enabled", "severity": "High"},
+    {"resource": "Azure Storage: prodassets001", "issue": "Secure transfer required (HTTPS) is disabled", "severity": "High"},
+    {"resource": "Azure Storage: prodassets001", "issue": "Public blob access is allowed", "severity": "Critical"},
+    {"resource": "Azure NSG: nsg-frontend", "issue": "Allows inbound traffic from Internet to sensitive port 3389", "severity": "Critical"},
+    {"resource": "Azure RBAC", "issue": "Service Principal 'deploy-bot' has overprivileged Owner role at subscription level", "severity": "High"}
+]

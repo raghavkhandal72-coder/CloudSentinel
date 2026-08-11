@@ -1,0 +1,26 @@
+{
+  "users": [
+    {
+      "UserName": "backup-svc",
+      "InlinePolicies": ["AdministratorAccess"]
+    }
+  ],
+  "s3": [
+    {
+      "Name": "company-prod-backups",
+      "BlockPublicAccess": false
+    }
+  ],
+  "ec2_sg": [
+    {
+      "GroupId": "sg-01928374",
+      "GroupName": "web-dmz",
+      "IpPermissions": [
+        {
+          "FromPort": 22,
+          "IpRanges": [{"CidrIp": "0.0.0.0/0"}]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "storage_accounts": [
+    {
+      "name": "prodassets001",
+      "enable_https_traffic_only": false,
+      "allow_blob_public_access": true
+    }
+  ],
+  "network_security_groups": [
+    {
+      "name": "nsg-frontend",
+      "security_rules": [
+        {
+          "access": "Allow",
+          "direction": "Inbound",
+          "source_address_prefix": "*",
+          "destination_port_range": "3389"
+        }
+      ]
+    }
+  ]
+}

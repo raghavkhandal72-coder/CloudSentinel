@@ -1,51 +1,47 @@
 import json
 import argparse
-from aws.scanner import AWSScanner
-from azure.scanner import AzureScanner
-
-def generate_report(findings):
-    report = {
-        "summary": {
-            "critical": sum(1 for f in findings if f['severity'] == 'Critical'),
-            "high": sum(1 for f in findings if f['severity'] == 'High'),
-            "medium": sum(1 for f in findings if f['severity'] == 'Medium'),
-            "low": sum(1 for f in findings if f['severity'] == 'Low')
-        },
-        "findings": findings
-    }
-    return report
-
-def print_markdown(report):
-    print("\n# CloudSentinel Security Report\n")
-    print("## Summary")
-    print(f"Critical: {report['summary']['critical']}")
-    print(f"High:     {report['summary']['high']}")
-    print(f"Medium:   {report['summary']['medium']}")
-    print(f"Low:      {report['summary']['low']}\n")
-    
-    print("## Detailed Findings")
-    for finding in report['findings']:
-        print(f"- **[{finding['severity']}]** {finding['resource']}: {finding['issue']}")
-    print("\n")
+import os
+from backend.scanners.aws import AWSScanner
+from backend.scanners.azure import AzureScanner
+from backend.engine.risk import RiskEngine
+from backend.reports.html_report import generate_html_report
+from backend.reports.json_report import generate_json_report
 
 def generate_mock_findings():
-    return [
-        {"resource": "AWS IAM User: backup-svc", "issue": "User has direct inline policies attached (AdministratorAccess)", "severity": "High"},
-        {"resource": "AWS S3: company-prod-backups", "issue": "Bucket does not block all public access", "severity": "Critical"},
-        {"resource": "AWS EC2 SG: sg-01928374 (web-dmz)", "issue": "Allows ingress from 0.0.0.0/0 on sensitive port 22", "severity": "Critical"},
-        {"resource": "AWS CloudTrail", "issue": "No multi-region CloudTrail is enabled", "severity": "High"},
-        {"resource": "Azure Storage: prodassets001", "issue": "Secure transfer required (HTTPS) is disabled", "severity": "High"},
-        {"resource": "Azure Storage: prodassets001", "issue": "Public blob access is allowed", "severity": "Critical"},
-        {"resource": "Azure NSG: nsg-frontend", "issue": "Allows inbound traffic from Internet to sensitive port 3389", "severity": "Critical"},
-        {"resource": "Azure RBAC", "issue": "Service Principal 'deploy-bot' has overprivileged Owner role at subscription level", "severity": "High"}
-    ]
+    try:
+        mock_file = os.path.join(os.path.dirname(__file__), "..", "mock", "expected_findings.json")
+        with open(mock_file, "r") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading mock findings: {e}")
+        return []
+
+def print_markdown(findings):
+    critical = sum(1 for f in findings if f.get('risk_level') == 'Critical')
+    high = sum(1 for f in findings if f.get('risk_level') == 'High')
+    medium = sum(1 for f in findings if f.get('risk_level') == 'Medium')
+    low = sum(1 for f in findings if f.get('risk_level') == 'Low')
+
+    print("\n# CloudSentinel Security Report\n")
+    print("## Summary")
+    print(f"Critical: {critical}")
+    print(f"High:     {high}")
+    print(f"Medium:   {medium}")
+    print(f"Low:      {low}\n")
+    
+    print("## Detailed Findings")
+    for finding in findings:
+        score = finding.get('risk_score', 0)
+        level = finding.get('risk_level', 'Unknown')
+        print(f"- **[{level}] (Score: {score})** {finding.get('resource')}: {finding.get('issue')}")
+    print("\n")
 
 def main():
     parser = argparse.ArgumentParser(description="CloudSentinel: Multi-Cloud Security Posture Analyzer")
     parser.add_argument("--aws", action="store_true", help="Scan AWS environment")
     parser.add_argument("--azure", action="store_true", help="Scan Azure environment")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode (simulates a vulnerable environment without cloud credentials)")
-    parser.add_argument("--json", action="store_true", help="Output results in JSON format")
+    parser.add_argument("--report", choices=["json", "html", "md"], default="md", help="Output format (default: md)")
     args = parser.parse_args()
 
     if not args.aws and not args.azure and not args.mock:
@@ -65,12 +61,18 @@ def main():
             azure_scan = AzureScanner()
             all_findings.extend(azure_scan.scan_all())
 
-    report = generate_report(all_findings)
+    # Evaluate risk score
+    engine = RiskEngine()
+    evaluated_findings = engine.evaluate_findings(all_findings)
 
-    if args.json:
+    if args.report == "json":
+        report = generate_json_report(evaluated_findings)
         print(json.dumps(report, indent=4))
+    elif args.report == "html":
+        out_path = generate_html_report(evaluated_findings)
+        print(f"HTML Report generated at: {out_path}")
     else:
-        print_markdown(report)
+        print_markdown(evaluated_findings)
 
 if __name__ == "__main__":
     main()

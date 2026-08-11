@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CloudSentinel Security Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 40px; background-color: #f8f9fa; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
+        .summary { display: flex; gap: 20px; margin-bottom: 30px; }
+        .stat-box { flex: 1; padding: 20px; text-align: center; border-radius: 8px; color: white; font-weight: bold; }
+        .stat-critical { background-color: #e74c3c; }
+        .stat-high { background-color: #e67e22; }
+        .stat-medium { background-color: #f1c40f; color: #333; }
+        .stat-low { background-color: #3498db; }
+        .finding { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 5px solid #ddd; }
+        .Critical { border-left-color: #e74c3c; }
+        .High { border-left-color: #e67e22; }
+        .Medium { border-left-color: #f1c40f; }
+        .Low { border-left-color: #3498db; }
+        .score { font-weight: bold; padding: 3px 8px; border-radius: 4px; color: white; float: right; }
+        .score-Critical { background-color: #e74c3c; }
+        .score-High { background-color: #e67e22; }
+        .score-Medium { background-color: #f1c40f; color: #333;}
+        .score-Low { background-color: #3498db; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CloudSentinel Security Assessment</h1>
+        <h2>Summary</h2>
+        <div class="summary">
+            <div class="stat-box stat-critical">
+                <div style="font-size: 24px;">0</div>
+                <div>Critical</div>
+            </div>
+            <div class="stat-box stat-high">
+                <div style="font-size: 24px;">2</div>
+                <div>High</div>
+            </div>
+            <div class="stat-box stat-medium">
+                <div style="font-size: 24px;">5</div>
+                <div>Medium</div>
+            </div>
+            <div class="stat-box stat-low">
+                <div style="font-size: 24px;">1</div>
+                <div>Low</div>
+            </div>
+        </div>
+        
+        <h2>Detailed Findings</h2>
+        
+        <div class="finding High">
+            <span class="score score-High">Risk Score: 75/100</span>
+            <h3>AWS S3: company-prod-backups</h3>
+            <p><strong>Issue:</strong> Bucket does not block all public access</p>
+            <p><strong>Original Severity:</strong> Critical</p>
+        </div>
+        
+        <div class="finding High">
+            <span class="score score-High">Risk Score: 75/100</span>
+            <h3>Azure Storage: prodassets001</h3>
+            <p><strong>Issue:</strong> Public blob access is allowed</p>
+            <p><strong>Original Severity:</strong> Critical</p>
+        </div>
+        
+        <div class="finding Medium">
+            <span class="score score-Medium">Risk Score: 60/100</span>
+            <h3>AWS EC2 SG: sg-01928374 (web-dmz)</h3>
+            <p><strong>Issue:</strong> Allows ingress from 0.0.0.0/0 on sensitive port 22</p>
+            <p><strong>Original Severity:</strong> Critical</p>
+        </div>
+        
+        <div class="finding Medium">
+            <span class="score score-Medium">Risk Score: 60/100</span>
+            <h3>Azure NSG: nsg-frontend</h3>
+            <p><strong>Issue:</strong> Allows inbound traffic from Internet to sensitive port 3389</p>
+            <p><strong>Original Severity:</strong> Critical</p>
+        </div>
+        
+        <div class="finding Medium">
+            <span class="score score-Medium">Risk Score: 55/100</span>
+            <h3>Azure Storage: prodassets001</h3>
+            <p><strong>Issue:</strong> Secure transfer required (HTTPS) is disabled</p>
+            <p><strong>Original Severity:</strong> High</p>
+        </div>
+        
+        <div class="finding Medium">
+            <span class="score score-Medium">Risk Score: 45/100</span>
+            <h3>AWS IAM User: backup-svc</h3>
+            <p><strong>Issue:</strong> User has direct inline policies attached (AdministratorAccess)</p>
+            <p><strong>Original Severity:</strong> High</p>
+        </div>
+        
+        <div class="finding Medium">
+            <span class="score score-Medium">Risk Score: 45/100</span>
+            <h3>Azure RBAC</h3>
+            <p><strong>Issue:</strong> Service Principal 'deploy-bot' has overprivileged Owner role at subscription level</p>
+            <p><strong>Original Severity:</strong> High</p>
+        </div>
+        
+        <div class="finding Low">
+            <span class="score score-Low">Risk Score: 30/100</span>
+            <h3>AWS CloudTrail</h3>
+            <p><strong>Issue:</strong> No multi-region CloudTrail is enabled</p>
+            <p><strong>Original Severity:</strong> High</p>
+        </div>
+        
+    </div>
+</body>
+</html>

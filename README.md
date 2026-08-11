@@ -38,9 +38,15 @@ You can scan either AWS, Azure, or both simultaneously:
 python main.py --aws --azure
 ```
 
+**Interview / Recruiter Mode (No Cloud Credentials Needed):**
+```bash
+python main.py --mock
+```
+This mode simulates a vulnerable AWS and Azure environment locally, returning critical findings instantly without incurring cloud costs or requiring authentication.
+
 To output results in JSON format for CI/CD pipelines or SIEM ingestion:
 ```bash
-python main.py --aws --json
+python main.py --mock --json
 ```
 
 ## 📊 Sample Output

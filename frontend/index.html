@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudSentinel Dashboard</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- CSS Styles -->
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --critical: #ef4444;
+            --high: #f97316;
+            --medium: #eab308;
+            --passed: #22c55e;
+            --border: #334155;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .header h1 { margin: 0; color: #38bdf8; font-size: 2rem; }
+        .score-box { text-align: right; }
+        .score-value { font-size: 2.5rem; font-weight: bold; color: var(--passed); }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            background-color: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .metric-title { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .metric-value { font-size: 2rem; font-weight: bold; margin-top: 0.5rem; }
+
+        .critical .metric-value { color: var(--critical); }
+        .high .metric-value { color: var(--high); }
+        .medium .metric-value { color: var(--medium); }
+        .passed .metric-value { color: var(--passed); }
+
+        .findings-table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: var(--bg-card);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+
+        .findings-table th, .findings-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .findings-table th {
+            background-color: rgba(0,0,0,0.2);
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .badge-CRITICAL { background-color: rgba(239, 68, 68, 0.2); color: var(--critical); }
+        .badge-HIGH { background-color: rgba(249, 115, 22, 0.2); color: var(--high); }
+        .badge-MEDIUM { background-color: rgba(234, 179, 8, 0.2); color: var(--medium); }
+
+        .btn {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:hover { background-color: #2563eb; }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50;
+        }
+        .modal-content {
+            background-color: var(--bg-card);
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+        }
+        .modal-close { float: right; cursor: pointer; color: var(--text-muted); font-size: 1.5rem; }
+        .modal-section { margin-bottom: 1.5rem; }
+        .modal-section h4 { color: #38bdf8; margin-bottom: 0.5rem; }
+        pre { background-color: #0f172a; padding: 1rem; border-radius: 4px; overflow-x: auto; color: #a5b4fc; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [stats, setStats] = useState(null);
+            const [findings, setFindings] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [selectedFinding, setSelectedFinding] = useState(null);
+
+            const API_BASE = "http://127.0.0.1:8000/api";
+
+            const loadData = async () => {
+                setLoading(true);
+                try {
+                    const statsRes = await fetch(`${API_BASE}/stats`);
+                    setStats(await statsRes.json());
+
+                    const findingsRes = await fetch(`${API_BASE}/findings`);
+                    setFindings(await findingsRes.json());
+                } catch (e) {
+                    console.error("Failed to load data:", e);
+                }
+                setLoading(false);
+            };
+
+            const triggerScan = async () => {
+                try {
+                    await fetch(`${API_BASE}/scan`, { method: 'POST' });
+                    await loadData();
+                } catch (e) {
+                    console.error("Scan failed:", e);
+                }
+            };
+
+            useEffect(() => {
+                loadData();
+            }, []);
+
+            if (loading) return <div className="container" style={{textAlign: 'center', marginTop: '5rem'}}><h2>Connecting to CloudSentinel Engine...</h2></div>;
+
+            return (
+                <div className="container">
+                    <header className="header">
+                        <div>
+                            <h1>☁️ CloudSentinel</h1>
+                            <p style={{color: 'var(--text-muted)'}}>Multi-Cloud Security Posture Management</p>
+                        </div>
+                        <div className="score-box">
+                            <div style={{color: 'var(--text-muted)'}}>Cloud Security Score</div>
+                            <div className="score-value">{stats?.score}/100</div>
+                        </div>
+                    </header>
+
+                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                        <h2 style={{margin: 0}}>Posture Overview</h2>
+                        <button className="btn" onClick={triggerScan}>Run Cloud Audit</button>
+                    </div>
+
+                    <div className="metrics-grid">
+                        <div className="metric-card critical">
+                            <div className="metric-title">Critical Risks</div>
+                            <div className="metric-value">{stats?.critical}</div>
+                        </div>
+                        <div className="metric-card high">
+                            <div className="metric-title">High Risks</div>
+                            <div className="metric-value">{stats?.high}</div>
+                        </div>
+                        <div className="metric-card medium">
+                            <div className="metric-title">Medium Risks</div>
+                            <div className="metric-value">{stats?.medium}</div>
+                        </div>
+                        <div className="metric-card passed">
+                            <div className="metric-title">Passed Checks</div>
+                            <div className="metric-value">{stats?.passed}</div>
+                        </div>
+                    </div>
+
+                    <h2>Active Security Findings</h2>
+                    <table className="findings-table">
+                        <thead>
+                            <tr>
+                                <th>Risk</th>
+                                <th>Provider</th>
+                                <th>Finding</th>
+                                <th>Resource ID</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {findings.map(f => (
+                                <tr key={f.id}>
+                                    <td><span className={`badge badge-${f.risk_level}`}>{f.risk_level}</span></td>
+                                    <td>{f.cloud_provider}</td>
+                                    <td style={{fontWeight: '500'}}>{f.finding_title}</td>
+                                    <td style={{fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-muted)'}}>{f.resource_id}</td>
+                                    <td>
+                                        <button className="btn" style={{padding: '0.25rem 0.75rem', fontSize: '0.8rem'}} onClick={() => setSelectedFinding(f)}>
+                                            Investigate
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+
+                    {selectedFinding && (
+                        <div className="modal-overlay" onClick={() => setSelectedFinding(null)}>
+                            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                                <span className="modal-close" onClick={() => setSelectedFinding(null)}>&times;</span>
+                                <h2 style={{marginTop: 0, color: 'var(--text-main)'}}>
+                                    <span className={`badge badge-${selectedFinding.risk_level}`} style={{marginRight: '1rem'}}>{selectedFinding.risk_level}</span>
+                                    {selectedFinding.finding_title}
+                                </h2>
+                                
+                                <div className="modal-section">
+                                    <h4>Resource ID</h4>
+                                    <div style={{fontFamily: 'monospace', color: 'var(--text-muted)'}}>{selectedFinding.resource_id}</div>
+                                </div>
+                                
+                                <div className="modal-section">
+                                    <h4>Why It Matters</h4>
+                                    <p>{selectedFinding.why_it_matters}</p>
+                                </div>
+
+                                <div className="modal-section">
+                                    <h4>Configuration Evidence (JSON)</h4>
+                                    <pre>{selectedFinding.evidence}</pre>
+                                </div>
+
+                                <div className="modal-section">
+                                    <h4>CIS Benchmark</h4>
+                                    <div style={{color: 'var(--medium)', fontWeight: 'bold'}}>{selectedFinding.cis_benchmark}</div>
+                                </div>
+
+                                <div className="modal-section" style={{backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--passed)'}}>
+                                    <h4 style={{color: 'var(--passed)', marginTop: 0}}>Remediation Steps</h4>
+                                    <p style={{margin: 0}}>{selectedFinding.remediation}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

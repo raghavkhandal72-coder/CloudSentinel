@@ -2,6 +2,7 @@ import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from .base import BaseScanner
 import datetime
+import json
 
 class AWSScanner(BaseScanner):
     def __init__(self):
@@ -48,17 +49,47 @@ class AWSScanner(BaseScanner):
             now = datetime.datetime.now(datetime.timezone.utc)
             for user in users:
                 user_name = user['UserName']
-                
+                try:
+                    mfa_devices = self.iam.list_mfa_devices(UserName=user_name)['MFADevices']
+                    if not mfa_devices:
+                        findings.append({
+                            "resource": f"IAM User: {user_name}",
+                            "issue": "IAM user does not have MFA enabled",
+                            "severity": "High"
+                        })
+                except Exception:
+                    pass
+
                 # Check direct inline policies
                 inline_policies = self.iam.list_user_policies(UserName=user_name)['PolicyNames']
                 if inline_policies:
                     findings.append({"resource": f"IAM User: {user_name}", "issue": "User has direct inline policies attached", "severity": "Medium"})
                 
-                # Check attached managed policies for AdministratorAccess
+                # Check attached managed policies for AdministratorAccess and wildcard
                 attached = self.iam.list_attached_user_policies(UserName=user_name)['AttachedPolicies']
                 for pol in attached:
                     if pol['PolicyName'] == 'AdministratorAccess':
                         findings.append({"resource": f"IAM User: {user_name}", "issue": "User has AdministratorAccess directly attached", "severity": "High"})
+                    else:
+                        try:
+                            arn = pol['PolicyArn']
+                            policy = self.iam.get_policy(PolicyArn=arn)['Policy']
+                            version = self.iam.get_policy_version(PolicyArn=arn, VersionId=policy['DefaultVersionId'])['PolicyVersion']
+                            doc = version.get('Document', {})
+                            for stat in doc.get('Statement', []):
+                                if isinstance(stat, dict) and stat.get('Effect') == 'Allow':
+                                    actions = stat.get('Action', [])
+                                    if isinstance(actions, str): actions = [actions]
+                                    resources = stat.get('Resource', [])
+                                    if isinstance(resources, str): resources = [resources]
+                                    if '*' in actions and '*' in resources:
+                                        findings.append({
+                                            "resource": f"IAM Policy: {pol['PolicyName']}",
+                                            "issue": "Policy grants wildcard Action and Resource permissions",
+                                            "severity": "Critical"
+                                        })
+                        except Exception:
+                            pass
 
                 # Access Keys age & inactive
                 keys = self.iam.list_access_keys(UserName=user_name)['AccessKeyMetadata']
@@ -132,6 +163,25 @@ class AWSScanner(BaseScanner):
                 except Exception:
                     pass
 
+                # Bucket policy check for public access
+                try:
+                    policy_str = self.s3.get_bucket_policy(Bucket=name)['Policy']
+                    policy_doc = json.loads(policy_str)
+                    for stat in policy_doc.get('Statement', []):
+                        if stat.get('Effect') == 'Allow':
+                            prin = stat.get('Principal', '')
+                            if prin == '*' or (isinstance(prin, dict) and prin.get('AWS') == '*'):
+                                actions = stat.get('Action', [])
+                                if isinstance(actions, str): actions = [actions]
+                                if 's3:GetObject' in actions or 's3:*' in actions or '*' in actions:
+                                    findings.append({
+                                        "resource": f"S3: {name}",
+                                        "issue": "S3 bucket policy allows public object access",
+                                        "severity": "Critical"
+                                    })
+                except Exception:
+                    pass
+
         except Exception as e:
             findings.append({"resource": "S3", "issue": f"Failed to scan S3: {str(e)}", "severity": "Low"})
         return findings
@@ -153,11 +203,17 @@ class AWSScanner(BaseScanner):
                                     "issue": f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port} (SSH/RDP)",
                                     "severity": "Critical"
                                 })
-                            elif from_port in [3306, 5432, 1433]:
+                            elif from_port in [3306, 5432, 1433, 6379, 27017, 9200, 23]:
                                 findings.append({
                                     "resource": f"EC2 SG: {sg['GroupId']}",
-                                    "issue": f"Allows ingress from 0.0.0.0/0 on database port {from_port}",
+                                    "issue": f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port}",
                                     "severity": "High"
+                                })
+                            elif from_port == 21:
+                                findings.append({
+                                    "resource": f"EC2 SG: {sg['GroupId']}",
+                                    "issue": f"Allows ingress from 0.0.0.0/0 on port {from_port} (FTP)",
+                                    "severity": "Medium"
                                 })
                 # Egress
                 for perm in sg.get('IpPermissionsEgress', []):
@@ -200,6 +256,18 @@ class AWSScanner(BaseScanner):
                     has_management = any(s.get('IncludeManagementEvents') for s in selectors)
                     if not has_management:
                          findings.append({"resource": f"CloudTrail: {name}", "issue": "Trail does not record management events", "severity": "High"})
+                except Exception:
+                    pass
+
+                # Logging status
+                try:
+                    status = self.cloudtrail.get_trail_status(Name=name)
+                    if not status.get('IsLogging'):
+                        findings.append({
+                            "resource": f"CloudTrail: {name}",
+                            "issue": "CloudTrail trail exists but logging is disabled",
+                            "severity": "Critical"
+                        })
                 except Exception:
                     pass
 

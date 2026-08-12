@@ -4,6 +4,7 @@ import os
 from backend.scanners.aws import AWSScanner
 from backend.scanners.azure import AzureScanner
 from backend.engine.risk import RiskEngine
+from backend.engine.remediation import RemediationEngine
 from backend.reports.html_report import generate_html_report
 from backend.reports.json_report import generate_json_report
 
@@ -64,6 +65,10 @@ def main():
     # Evaluate risk score
     engine = RiskEngine()
     evaluated_findings = engine.evaluate_findings(all_findings)
+
+    # Apply remediation
+    remediation_engine = RemediationEngine()
+    evaluated_findings = remediation_engine.apply_remediation(evaluated_findings)
 
     if args.report == "json":
         report = generate_json_report(evaluated_findings)

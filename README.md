@@ -10,21 +10,13 @@ It replaces manual cloud console checks with a fast, deterministic **Risk Engine
 
 ```mermaid
 graph TD
-    A[CloudSentinel CLI] --> B{Mock Mode?}
-    B -- Yes --> C[Mock Data JSONs]
-    B -- No --> D[AWS SDK boto3]
-    B -- No --> E[Azure SDK azure-identity]
-    
-    C --> F[Risk Engine]
-    D --> F
-    E --> F
-    
-    F --> G(Calculate Risk Score 0-100)
-    G --> H{Report Generator}
-    
-    H -- --report md --> I[Markdown Output]
-    H -- --report json --> J[JSON Output]
-    H -- --report html --> K[HTML Dashboard]
+    A[AWS / Azure] --> B[CloudSentinel CLI]
+    B --> C[Cloud Scanners (AWS + Azure)]
+    C --> D[Finding Model]
+    D --> E[Risk Engine]
+    E --> F[Remediation]
+    F --> G[JSON]
+    F --> H[HTML]
 ```
 
 ## 🚀 Features
@@ -77,20 +69,48 @@ python backend/main.py --mock --report json
 python backend/main.py --mock --report html
 ```
 
+## 🎥 Demo
+
+### Vulnerable Lab
+
+Terraform provisions intentionally insecure test resources (S3, Security Groups, IAM, Azure Blob, NSG, RBAC).
+
+### Scan
+
+CloudSentinel detects:
+
+- IAM misconfiguration
+- Public storage
+- Network exposure
+- Logging issues
+- RBAC problems
+
+### Output
+
+JSON + HTML security reports are generated with actionable remediation steps.
+
+### Safety
+
+The Terraform lab is intentionally vulnerable and must only be deployed into a dedicated test environment.
+
 ## 📊 Sample Output (Markdown)
 ```text
 # CloudSentinel Security Report
 
 ## Summary
-Critical: 3
+Critical: 0
 High:     3
-Medium:   0
+Medium:   2
 Low:      0
 
 ## Detailed Findings
-- [Critical] (Score: 75) AWS S3: company-prod-backups: Bucket does not block all public access
-- [Critical] (Score: 70) Azure Storage: prodassets001: Public blob access is allowed
-- [High] (Score: 65) AWS IAM User: backup-svc: User has direct inline policies attached (AdministratorAccess)
+### [High] (Score: 75) AWS S3: company-prod-backups
+**Issue:** Bucket does not block all public access
+**Why is this Risk Level?**
+  - Internet or broadly exposed
+  - Sensitive data or storage resource
+  - Base severity is Critical
+**Remediation:** Enable Block Public Access completely
 ```
 
 ## 🧪 Testing and CI/CD

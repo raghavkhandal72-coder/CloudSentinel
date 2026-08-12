@@ -1,1 +1,1 @@
-from .finding import Finding
+from .finding import Finding  # noqa: F401

@@ -7,8 +7,7 @@
 ![Azure](https://img.shields.io/badge/Azure-Supported-0089D6?logo=microsoftazure)
 ![Terraform](https://img.shields.io/badge/Terraform-Lab-7B42BC?logo=terraform)
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
-![GitHub Actions](https://img.shields.io/badge/CI%2FCD-Active-2088FF?logo=githubactions)
-![Security](https://img.shields.io/badge/Security-Hardened-success)
+[![CI](https://github.com/raghavkhandal72-coder/CloudSentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/raghavkhandal72-coder/CloudSentinel/actions/workflows/ci.yml)
 
 CloudSentinel replaces manual cloud console checks with a fast, deterministic **Risk Engine** that outputs actionable findings mapped to severity levels.
 

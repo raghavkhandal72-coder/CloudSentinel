@@ -1,8 +1,6 @@
-import pytest
-import json
-import os
+from backend.reports.html_report import generate_html_report
 from backend.reports.json_report import generate_json_report
-from backend.reports.html_report import generate_html_report, esc
+
 
 def test_json_summary():
     findings = [
@@ -43,7 +41,7 @@ def test_html_generation(tmp_path):
         {"resource": "test_resource", "issue": "test_issue", "risk_level": "High", "risk_score": 70}
     ]
     out_path = tmp_path / "report.html"
-    res = generate_html_report(findings, str(out_path))
+    generate_html_report(findings, str(out_path))
     assert out_path.exists()
     
     with open(out_path, "r", encoding="utf-8") as f:

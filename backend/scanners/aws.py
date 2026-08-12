@@ -1,9 +1,13 @@
-import boto3
-from botocore.exceptions import NoCredentialsError, ClientError
-from .base import BaseScanner
-from backend.models.finding import Finding
 import datetime
 import json
+
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
+
+from backend.models.finding import Finding
+
+from .base import BaseScanner
+
 
 class AWSScanner(BaseScanner):
     def __init__(self):
@@ -83,7 +87,7 @@ class AWSScanner(BaseScanner):
                     mfa_devices = self.iam.list_mfa_devices(UserName=user_name)['MFADevices']
                     if not mfa_devices:
                         findings.append(self._create_finding("IAM", f"User: {user_name}", "IAM user does not have MFA enabled", "High", "No MFA devices found", "Enable MFA for user", "1.10"))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 # Check direct inline policies
@@ -110,7 +114,7 @@ class AWSScanner(BaseScanner):
                                     if isinstance(resources, str): resources = [resources]
                                     if '*' in actions and '*' in resources:
                                         findings.append(self._create_finding("IAM", f"Policy: {pol['PolicyName']}", "Policy grants wildcard Action and Resource permissions", "Critical", "Action: *, Resource: *", "Remove wildcard permissions", "1.22", privilege=15))
-                        except Exception:
+                        except Exception:  # noqa: BLE001, S110
                             pass
 
                 # Access Keys age & inactive
@@ -131,8 +135,8 @@ class AWSScanner(BaseScanner):
                     # Check wildcard principle
                     if stat.get('Effect') == 'Allow' and stat.get('Principal') == '*':
                          findings.append(self._create_finding("IAM", f"Role: {role['RoleName']}", "Role trust policy allows all AWS accounts (*)", "Critical", "Principal: *", "Restrict trust policy to known accounts", "1.22"))
-        except Exception as e:
-            findings.append(self._create_finding("IAM", "Global", f"Failed to scan IAM: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
+        except Exception as e:  # noqa: BLE001
+            findings.append(self._create_finding("IAM", "Global", f"Failed to scan IAM: {e!s}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings
 
     def scan_s3(self):
@@ -164,7 +168,7 @@ class AWSScanner(BaseScanner):
                     vers = self.s3.get_bucket_versioning(Bucket=name)
                     if vers.get('Status') != 'Enabled':
                         findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket versioning is not enabled", "Low", "Versioning disabled", "Enable versioning", "N/A"))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
                 
                 # Logging
@@ -172,7 +176,7 @@ class AWSScanner(BaseScanner):
                     log_res = self.s3.get_bucket_logging(Bucket=name)
                     if not log_res.get('LoggingEnabled'):
                         findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket server access logging is not enabled", "Low", "Logging disabled", "Enable server access logging", "2.1.3"))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 # ACL check
@@ -182,7 +186,7 @@ class AWSScanner(BaseScanner):
                         grantee = grant.get('Grantee', {})
                         if grantee.get('URI') in ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']:
                             findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket ACL allows public or any authenticated AWS user access", "Critical", f"Grantee: {grantee.get('URI')}", "Remove public ACLs", "2.1.1", exposure=20, data_sensitivity=15))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 # Bucket policy check for public access
@@ -197,11 +201,11 @@ class AWSScanner(BaseScanner):
                                 if isinstance(actions, str): actions = [actions]
                                 if 's3:GetObject' in actions or 's3:*' in actions or '*' in actions:
                                     findings.append(self._create_finding("S3", f"Bucket: {name}", "S3 bucket policy allows public object access", "Critical", "Principal: *", "Remove public bucket policy", "2.1.1", exposure=20, data_sensitivity=15))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
-        except Exception as e:
-            findings.append(self._create_finding("S3", "Global", f"Failed to scan S3: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
+        except Exception as e:  # noqa: BLE001
+            findings.append(self._create_finding("S3", "Global", f"Failed to scan S3: {e!s}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings
 
     def scan_security_groups(self):
@@ -214,7 +218,7 @@ class AWSScanner(BaseScanner):
                     for ip_range in perm.get('IpRanges', []):
                         if ip_range.get('CidrIp') == '0.0.0.0/0':
                             from_port = perm.get('FromPort')
-                            to_port = perm.get('ToPort')
+                            perm.get('ToPort')
                             if from_port in [22, 3389]:
                                 findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port} (SSH/RDP)", "Critical", f"Port: {from_port}", "Restrict source to known IPs", "4.1", exposure=20, exploitability=10))
                             elif from_port in [3306, 5432, 1433, 6379, 27017, 9200, 23]:
@@ -227,8 +231,8 @@ class AWSScanner(BaseScanner):
                         for ip_range in perm.get('IpRanges', []):
                             if ip_range.get('CidrIp') == '0.0.0.0/0':
                                 findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", "Allows unrestricted egress traffic (0.0.0.0/0 on all ports)", "Low", "Egress: 0.0.0.0/0", "Restrict outbound traffic", "N/A"))
-        except Exception as e:
-            findings.append(self._create_finding("EC2", "Global", f"Failed to scan Security Groups: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
+        except Exception as e:  # noqa: BLE001
+            findings.append(self._create_finding("EC2", "Global", f"Failed to scan Security Groups: {e!s}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings
 
     def scan_cloudtrail(self):
@@ -258,7 +262,7 @@ class AWSScanner(BaseScanner):
                     has_management = any(s.get('IncludeManagementEvents') for s in selectors)
                     if not has_management:
                          findings.append(self._create_finding("CloudTrail", f"Trail: {name}", "Trail does not record management events", "High", "No management events", "Enable management events", "3.1"))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
                 # Logging status
@@ -266,9 +270,9 @@ class AWSScanner(BaseScanner):
                     status = self.cloudtrail.get_trail_status(Name=name)
                     if not status.get('IsLogging'):
                         findings.append(self._create_finding("CloudTrail", f"Trail: {name}", "CloudTrail trail exists but logging is disabled", "Critical", "IsLogging=False", "Enable logging", "3.1"))
-                except Exception:
+                except Exception:  # noqa: BLE001, S110
                     pass
 
-        except Exception as e:
-            findings.append(self._create_finding("CloudTrail", "Global", f"Failed to scan CloudTrail: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
+        except Exception as e:  # noqa: BLE001
+            findings.append(self._create_finding("CloudTrail", "Global", f"Failed to scan CloudTrail: {e!s}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings

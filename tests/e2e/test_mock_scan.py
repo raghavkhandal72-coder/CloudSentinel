@@ -1,11 +1,9 @@
-import pytest
-import os
-import json
-from backend.main import generate_mock_findings
-from backend.engine.risk import RiskEngine
 from backend.engine.remediation import RemediationEngine
-from backend.reports.json_report import generate_json_report
+from backend.engine.risk import RiskEngine
+from backend.main import generate_mock_findings
 from backend.reports.html_report import generate_html_report
+from backend.reports.json_report import generate_json_report
+
 
 def test_full_mock_scan_pipeline(tmp_path):
     # 1. Ingestion: Mock vulnerable configuration

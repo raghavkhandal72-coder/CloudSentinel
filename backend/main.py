@@ -1,19 +1,21 @@
-import json
 import argparse
+import json
 import os
-from backend.scanners.aws import AWSScanner
-from backend.scanners.azure import AzureScanner
-from backend.engine.risk import RiskEngine
+
 from backend.engine.remediation import RemediationEngine
+from backend.engine.risk import RiskEngine
 from backend.reports.html_report import generate_html_report
 from backend.reports.json_report import generate_json_report
+from backend.scanners.aws import AWSScanner
+from backend.scanners.azure import AzureScanner
+
 
 def generate_mock_findings():
     try:
         mock_file = os.path.join(os.path.dirname(__file__), "..", "mock", "expected_findings.json")
         with open(mock_file, "r") as f:
             return json.load(f)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"Error loading mock findings: {e}")
         return []
 

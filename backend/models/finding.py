@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Dict, List, Any
+from typing import Any
+
 
 @dataclass
 class Finding:
@@ -10,7 +11,7 @@ class Finding:
     severity: str
     evidence: Any
     remediation: str
-    frameworks: Dict[str, str] = field(default_factory=dict)
+    frameworks: dict[str, str] = field(default_factory=dict)
     
     # Risk Metadata
     exposure: int = 0
@@ -21,7 +22,7 @@ class Finding:
     # Computed later by RiskEngine
     risk_score: int = 0
     risk_level: str = ""
-    risk_factors: List[str] = field(default_factory=list)
+    risk_factors: list[str] = field(default_factory=list)
     
     def to_dict(self):
         return {

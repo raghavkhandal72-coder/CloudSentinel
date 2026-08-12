@@ -4,7 +4,7 @@ class RiskEngine:
     Formula: Risk Score = Severity + Exposure + Privilege + Data Sensitivity + Exploitability
     """
 
-    SEVERITY_WEIGHTS = {
+    SEVERITY_WEIGHTS = {  # noqa: RUF012
         "Critical": 40,
         "High": 30,
         "Medium": 20,

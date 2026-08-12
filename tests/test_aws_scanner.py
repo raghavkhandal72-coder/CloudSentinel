@@ -1,13 +1,16 @@
-import pytest
 import datetime
 import json
 from unittest.mock import MagicMock, patch
-from botocore.exceptions import NoCredentialsError, ClientError
+
+import pytest
+from botocore.exceptions import ClientError, NoCredentialsError
+
 from backend.scanners.aws import AWSScanner
+
 
 @pytest.fixture
 def scanner():
-    with patch("boto3.client") as mock_boto:
+    with patch("boto3.client"):
         s = AWSScanner()
         s.is_authenticated = True
         s.iam = MagicMock()

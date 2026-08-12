@@ -1,5 +1,7 @@
 import pytest
+
 from backend.engine.risk import RiskEngine
+
 
 @pytest.fixture
 def engine():

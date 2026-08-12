@@ -1,6 +1,7 @@
+import datetime
 import json
 import os
-import datetime
+
 
 def generate_json_report(findings, output_path=None):
     total_findings = len(findings)
@@ -13,7 +14,7 @@ def generate_json_report(findings, output_path=None):
     average_risk_score = sum(scores) / len(scores) if scores else 0.0
     maximum_risk_score = max(scores) if scores else 0
     
-    providers = list(set([f.get('provider') for f in findings if f.get('provider')]))
+    providers = list({f.get('provider') for f in findings if f.get('provider')})
     
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     

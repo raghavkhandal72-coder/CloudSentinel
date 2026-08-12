@@ -1,7 +1,8 @@
+import os
+
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-import os
 
 # Use PostgreSQL if running in docker (or env var set), fallback to SQLite for easy local execution
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./cloudsentinel.db")

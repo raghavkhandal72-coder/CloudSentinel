@@ -1,5 +1,5 @@
-import os
 import html
+import os
 
 HTML_TEMPLATE = """<!DOCTYPE html>
 <html>

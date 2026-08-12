@@ -1,6 +1,9 @@
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
+
 from backend.scanners.azure import AzureScanner
+
 
 @pytest.fixture
 def scanner():

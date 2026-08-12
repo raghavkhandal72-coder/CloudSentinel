@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any
+from typing import Any
+
 
 class BaseScanner(ABC):
     """
@@ -9,8 +10,7 @@ class BaseScanner(ABC):
         self.is_authenticated = False
 
     @abstractmethod
-    def scan_all(self) -> List[Dict[str, Any]]:
+    def scan_all(self) -> list[dict[str, Any]]:
         """
         Executes all configured checks and returns a list of findings.
         """
-        pass

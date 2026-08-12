@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Text, DateTime
-from database import Base
 import uuid
 from datetime import datetime
+
+from database import Base
+from sqlalchemy import Column, DateTime, String, Text
+
 
 class Finding(Base):
     __tablename__ = "findings"

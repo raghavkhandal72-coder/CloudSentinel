@@ -4,7 +4,7 @@ class RemediationEngine:
     Default behavior is recommendation only. No destructive changes will be made automatically.
     """
     
-    REMEDIATIONS = {
+    REMEDIATIONS = {  # noqa: RUF012
         "public_s3": {
             "title": "Disable public access",
             "steps": [

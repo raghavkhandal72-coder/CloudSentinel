@@ -1,13 +1,14 @@
-import os
 from azure.identity import DefaultAzureCredential
-from azure.core.exceptions import ClientAuthenticationError
-from azure.mgmt.resource import SubscriptionClient
-from azure.mgmt.storage import StorageManagementClient
-from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.authorization import AuthorizationManagementClient
 from azure.mgmt.monitor import MonitorManagementClient
-from .base import BaseScanner
+from azure.mgmt.network import NetworkManagementClient
+from azure.mgmt.resource import SubscriptionClient
+from azure.mgmt.storage import StorageManagementClient
+
 from backend.models.finding import Finding
+
+from .base import BaseScanner
+
 
 class AzureScanner(BaseScanner):
     def __init__(self):
@@ -17,7 +18,7 @@ class AzureScanner(BaseScanner):
             self.sub_client = SubscriptionClient(self.credential)
             self.subscriptions = list(self.sub_client.subscriptions.list())
             self.is_authenticated = bool(self.subscriptions)
-        except Exception:
+        except Exception:  # noqa: BLE001
             self.is_authenticated = False
 
     def scan_all(self):
@@ -102,10 +103,10 @@ class AzureScanner(BaseScanner):
                 if not account.encryption or not account.encryption.require_infrastructure_encryption:
                      findings.append(self._create_finding(
                         "Storage", res_name, "Infrastructure encryption is not enabled", "Medium",
-                        f"require_infrastructure_encryption = False",
+                        "require_infrastructure_encryption = False",
                         "Enable infrastructure encryption for double encryption", "3.3"
                     ))
-        except Exception as e:
+        except Exception:  # noqa: BLE001, S110
             pass
         return findings
 
@@ -117,7 +118,7 @@ class AzureScanner(BaseScanner):
             for nsg in nsgs:
                 res_name = f"{subscription_id}/{nsg.name}"
                 for rule in nsg.security_rules:
-                    if rule.access == 'Allow' and rule.direction == 'Inbound':
+                    if rule.access == 'Allow' and rule.direction == 'Inbound':  # noqa: SIM102
                         if rule.source_address_prefix in ['*', '0.0.0.0/0', 'Internet']:
                             port = rule.destination_port_range
                             
@@ -134,7 +135,7 @@ class AzureScanner(BaseScanner):
                                 f"Rule '{rule.name}' allows {rule.source_address_prefix} to {port}",
                                 "Restrict source address to known IPs or use Bastion/VPN", "6.2", exposure=20
                             ))
-        except Exception as e:
+        except Exception:  # noqa: BLE001, S110
             pass
         return findings
 
@@ -186,7 +187,7 @@ class AzureScanner(BaseScanner):
                         frameworks={"cis_azure": "1.23", "mitre": "T1098"},
                         privilege=15
                     ).to_dict())
-        except Exception as e:
+        except Exception:  # noqa: BLE001, S110
             pass
         return findings
 
@@ -217,7 +218,7 @@ class AzureScanner(BaseScanner):
                             findings.append(self._create_finding(
                                 "Monitor", f"{subscription_id}/{setting.name}",
                                 f"Diagnostic setting '{log.category}' log retention is set to 0 (which may mean no retention policy or indefinite depending on target)",
-                                "Low", f"retention_policy.days = 0",
+                                "Low", "retention_policy.days = 0",
                                 "Explicitly set log retention to at least 90 days if using Storage Account", "5.1"
                             ))
             
@@ -231,6 +232,6 @@ class AzureScanner(BaseScanner):
                         f"Enable Activity Log diagnostic setting for {cat}", "5.1"
                     ))
 
-        except Exception as e:
+        except Exception:  # noqa: BLE001, S110
             pass
         return findings

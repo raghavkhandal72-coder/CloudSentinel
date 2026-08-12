@@ -1,5 +1,5 @@
-import pytest
 from backend.main import generate_mock_findings
+
 
 def test_mock_findings_load():
     findings = generate_mock_findings()

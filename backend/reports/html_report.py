@@ -70,9 +70,20 @@ def generate_html_report(findings, output_path="reports/cloudsentinel-report.htm
             <span class="score score-{risk_level}">Risk Score: {f.get('risk_score', 0)}/100</span>
             <h3>{f.get('resource')}</h3>
             <p><strong>Issue:</strong> {f.get('issue')}</p>
-            <p><strong>Original Severity:</strong> {f.get('severity')}</p>
-        </div>
         """
+        
+        factors = f.get('risk_factors', [])
+        if factors:
+            findings_html += "<p><strong>Why is this Risk Level?</strong><ul>"
+            for factor in factors:
+                findings_html += f"<li>{factor}</li>"
+            findings_html += "</ul></p>"
+            
+        remediation = f.get('remediation')
+        if remediation:
+            findings_html += f"<p><strong>Remediation:</strong> {remediation}</p>"
+            
+        findings_html += "</div>"
     
     html = HTML_TEMPLATE.replace("{{ critical }}", str(critical))
     html = html.replace("{{ high }}", str(high))

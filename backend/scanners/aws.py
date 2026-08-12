@@ -1,6 +1,7 @@
 import boto3
 from botocore.exceptions import NoCredentialsError, ClientError
 from .base import BaseScanner
+from backend.models.finding import Finding
 import datetime
 import json
 
@@ -18,16 +19,20 @@ class AWSScanner(BaseScanner):
 
     def scan_all(self):
         if not self.is_authenticated:
-            return [{
-                "provider": "AWS",
-                "service": "Global",
-                "resource": "Authentication",
-                "issue": "Authentication Failed: No AWS Credentials Found",
-                "severity": "Critical",
-                "evidence": "boto3.client failed",
-                "remediation": "Configure aws credentials using 'aws configure'",
-                "framework": {"cis": "N/A", "mitre": "N/A"}
-            }]
+            return [Finding(
+                provider="AWS",
+                service="Global",
+                resource="Authentication",
+                issue="Authentication Failed: No AWS Credentials Found",
+                severity="Critical",
+                evidence="boto3.client failed",
+                remediation="Configure aws credentials using 'aws configure'",
+                frameworks={"cis_aws": "N/A", "mitre": "N/A"},
+                exposure=0,
+                privilege=0,
+                data_sensitivity=0,
+                exploitability=10
+            ).to_dict()]
         
         findings = []
         findings.extend(self.scan_iam())
@@ -36,20 +41,21 @@ class AWSScanner(BaseScanner):
         findings.extend(self.scan_cloudtrail())
         return findings
 
-    def _create_finding(self, service, resource, issue, severity, evidence, remediation, cis="N/A", mitre="N/A"):
-        return {
-            "provider": "AWS",
-            "service": service,
-            "resource": resource,
-            "issue": issue,
-            "severity": severity,
-            "evidence": evidence,
-            "remediation": remediation,
-            "framework": {
-                "cis": cis,
-                "mitre": mitre
-            }
-        }
+    def _create_finding(self, service, resource, issue, severity, evidence, remediation, cis="N/A", mitre="N/A", exposure=0, privilege=0, data_sensitivity=0, exploitability=0):
+        return Finding(
+            provider="AWS",
+            service=service,
+            resource=resource,
+            issue=issue,
+            severity=severity,
+            evidence=evidence,
+            remediation=remediation,
+            frameworks={"cis_aws": cis, "mitre": mitre},
+            exposure=exposure,
+            privilege=privilege,
+            data_sensitivity=data_sensitivity,
+            exploitability=exploitability
+        ).to_dict()
 
     def scan_iam(self):
         findings = []
@@ -103,7 +109,7 @@ class AWSScanner(BaseScanner):
                                     resources = stat.get('Resource', [])
                                     if isinstance(resources, str): resources = [resources]
                                     if '*' in actions and '*' in resources:
-                                        findings.append(self._create_finding("IAM", f"Policy: {pol['PolicyName']}", "Policy grants wildcard Action and Resource permissions", "Critical", "Action: *, Resource: *", "Remove wildcard permissions", "1.22"))
+                                        findings.append(self._create_finding("IAM", f"Policy: {pol['PolicyName']}", "Policy grants wildcard Action and Resource permissions", "Critical", "Action: *, Resource: *", "Remove wildcard permissions", "1.22", privilege=15))
                         except Exception:
                             pass
 
@@ -141,10 +147,10 @@ class AWSScanner(BaseScanner):
                     bpa = self.s3.get_public_access_block(Bucket=name)
                     config = bpa['PublicAccessBlockConfiguration']
                     if not (config.get('BlockPublicAcls') and config.get('IgnorePublicAcls') and config.get('BlockPublicPolicy') and config.get('RestrictPublicBuckets')):
-                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not block all public access", "High", "BPA config incomplete", "Enable Block Public Access completely", "2.1.1"))
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not block all public access", "High", "BPA config incomplete", "Enable Block Public Access completely", "2.1.1", data_sensitivity=15, exposure=20))
                 except ClientError as e:
                     if e.response['Error']['Code'] == 'NoSuchPublicAccessBlockConfiguration':
-                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not have Block Public Access enabled", "High", "No BPA configuration", "Enable Block Public Access", "2.1.1"))
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not have Block Public Access enabled", "High", "No BPA configuration", "Enable Block Public Access", "2.1.1", data_sensitivity=15, exposure=20))
                 
                 # Encryption
                 try:
@@ -175,7 +181,7 @@ class AWSScanner(BaseScanner):
                     for grant in acls.get('Grants', []):
                         grantee = grant.get('Grantee', {})
                         if grantee.get('URI') in ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']:
-                            findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket ACL allows public or any authenticated AWS user access", "Critical", f"Grantee: {grantee.get('URI')}", "Remove public ACLs", "2.1.1"))
+                            findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket ACL allows public or any authenticated AWS user access", "Critical", f"Grantee: {grantee.get('URI')}", "Remove public ACLs", "2.1.1", exposure=20, data_sensitivity=15))
                 except Exception:
                     pass
 
@@ -190,7 +196,7 @@ class AWSScanner(BaseScanner):
                                 actions = stat.get('Action', [])
                                 if isinstance(actions, str): actions = [actions]
                                 if 's3:GetObject' in actions or 's3:*' in actions or '*' in actions:
-                                    findings.append(self._create_finding("S3", f"Bucket: {name}", "S3 bucket policy allows public object access", "Critical", "Principal: *", "Remove public bucket policy", "2.1.1"))
+                                    findings.append(self._create_finding("S3", f"Bucket: {name}", "S3 bucket policy allows public object access", "Critical", "Principal: *", "Remove public bucket policy", "2.1.1", exposure=20, data_sensitivity=15))
                 except Exception:
                     pass
 
@@ -210,9 +216,9 @@ class AWSScanner(BaseScanner):
                             from_port = perm.get('FromPort')
                             to_port = perm.get('ToPort')
                             if from_port in [22, 3389]:
-                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port} (SSH/RDP)", "Critical", f"Port: {from_port}", "Restrict source to known IPs", "4.1"))
+                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port} (SSH/RDP)", "Critical", f"Port: {from_port}", "Restrict source to known IPs", "4.1", exposure=20, exploitability=10))
                             elif from_port in [3306, 5432, 1433, 6379, 27017, 9200, 23]:
-                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port}", "High", f"Port: {from_port}", "Restrict source to known IPs", "4.2"))
+                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port}", "High", f"Port: {from_port}", "Restrict source to known IPs", "4.2", exposure=20, data_sensitivity=15))
                             elif from_port == 21:
                                 findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on port {from_port} (FTP)", "Medium", f"Port: {from_port}", "Restrict source to known IPs", "N/A"))
                 # Egress

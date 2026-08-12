@@ -34,8 +34,17 @@ def print_markdown(findings):
     for finding in findings:
         score = finding.get('risk_score', 0)
         level = finding.get('risk_level', 'Unknown')
-        print(f"- **[{level}] (Score: {score})** {finding.get('resource')}: {finding.get('issue')}")
-    print("\n")
+        print(f"### [{level}] (Score: {score}) {finding.get('resource')}")
+        print(f"**Issue:** {finding.get('issue')}")
+        factors = finding.get('risk_factors', [])
+        if factors:
+            print("**Why is this Risk Level?**")
+            for factor in factors:
+                print(f"  - {factor}")
+        remediation = finding.get('remediation')
+        if remediation:
+            print(f"**Remediation:** {remediation}")
+        print("\n")
 
 def main():
     parser = argparse.ArgumentParser(description="CloudSentinel: Multi-Cloud Security Posture Analyzer")

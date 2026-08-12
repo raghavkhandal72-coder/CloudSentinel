@@ -7,6 +7,7 @@ from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.authorization import AuthorizationManagementClient
 from azure.mgmt.monitor import MonitorManagementClient
 from .base import BaseScanner
+from backend.models.finding import Finding
 
 class AzureScanner(BaseScanner):
     def __init__(self):
@@ -21,16 +22,20 @@ class AzureScanner(BaseScanner):
 
     def scan_all(self):
         if not self.is_authenticated:
-            return [{
-                "provider": "Azure",
-                "service": "Global",
-                "resource": "Authentication",
-                "issue": "Authentication Failed: No Azure Credentials Found (az login)",
-                "severity": "Critical",
-                "evidence": "DefaultAzureCredential failed",
-                "remediation": "Run 'az login' to authenticate",
-                "framework": {"cis": "N/A", "mitre": "N/A"}
-            }]
+            return [Finding(
+                provider="Azure",
+                service="Global",
+                resource="Authentication",
+                issue="Authentication Failed: No Azure Credentials Found (az login)",
+                severity="Critical",
+                evidence="DefaultAzureCredential failed",
+                remediation="Run 'az login' to authenticate",
+                frameworks={"cis_azure": "N/A", "mitre": "N/A"},
+                exposure=0,
+                privilege=0,
+                data_sensitivity=0,
+                exploitability=10
+            ).to_dict()]
         
         findings = []
         for sub in self.subscriptions:
@@ -41,20 +46,21 @@ class AzureScanner(BaseScanner):
             findings.extend(self.scan_monitor(sub_id))
         return findings
 
-    def _create_finding(self, service, resource, issue, severity, evidence, remediation, cis="N/A", mitre="N/A"):
-        return {
-            "provider": "Azure",
-            "service": service,
-            "resource": resource,
-            "issue": issue,
-            "severity": severity,
-            "evidence": evidence,
-            "remediation": remediation,
-            "framework": {
-                "cis": cis,
-                "mitre": mitre
-            }
-        }
+    def _create_finding(self, service, resource, issue, severity, evidence, remediation, cis="N/A", mitre="N/A", exposure=0, privilege=0, data_sensitivity=0, exploitability=0):
+        return Finding(
+            provider="Azure",
+            service=service,
+            resource=resource,
+            issue=issue,
+            severity=severity,
+            evidence=evidence,
+            remediation=remediation,
+            frameworks={"cis_azure": cis, "mitre": mitre},
+            exposure=exposure,
+            privilege=privilege,
+            data_sensitivity=data_sensitivity,
+            exploitability=exploitability
+        ).to_dict()
 
     def scan_storage(self, subscription_id: str):
         findings = []
@@ -67,13 +73,13 @@ class AzureScanner(BaseScanner):
                     findings.append(self._create_finding(
                         "Storage", res_name, "Secure transfer required (HTTPS) is disabled", "High",
                         f"enable_https_traffic_only = {account.enable_https_traffic_only}",
-                        "Enable 'Secure transfer required' in Storage Account settings", "3.1"
+                        "Enable 'Secure transfer required' in Storage Account settings", "3.1", exploitability=10
                     ))
                 if account.allow_blob_public_access:
                     findings.append(self._create_finding(
                         "Storage", res_name, "Public blob access is allowed", "Critical",
                         f"allow_blob_public_access = {account.allow_blob_public_access}",
-                        "Set 'allow_blob_public_access' to False", "3.7"
+                        "Set 'allow_blob_public_access' to False", "3.7", exposure=20, data_sensitivity=15
                     ))
                 if account.minimum_tls_version != 'TLS1_2':
                     findings.append(self._create_finding(
@@ -126,7 +132,7 @@ class AzureScanner(BaseScanner):
                             findings.append(self._create_finding(
                                 "NSG", res_name, f"Allows inbound traffic from Internet to port {port}", severity,
                                 f"Rule '{rule.name}' allows {rule.source_address_prefix} to {port}",
-                                "Restrict source address to known IPs or use Bastion/VPN", "6.2"
+                                "Restrict source address to known IPs or use Bastion/VPN", "6.2", exposure=20
                             ))
         except Exception as e:
             pass
@@ -169,19 +175,17 @@ class AzureScanner(BaseScanner):
                         severity = "Critical" if role_name in ["Owner", "Contributor", "User Access Administrator"] else severity
                         issue_desc = f"ServicePrincipal '{principal_id}' has privileged {role_name} role at broad scope: {scope}"
 
-                    findings.append({
-                        "provider": "Azure",
-                        "service": "RBAC",
-                        "resource": f"RBAC Assignment: {assignment.id}",
-                        "issue": issue_desc,
-                        "severity": severity,
-                        "principal_id": principal_id,
-                        "role": role_name,
-                        "scope": scope,
-                        "evidence": f"role_definition_id = {role_id}",
-                        "remediation": f"Review if {role_name} is needed at this scope. Apply least privilege.",
-                        "framework": {"cis": "1.23", "mitre": "T1098"}
-                    })
+                    findings.append(Finding(
+                        provider="Azure",
+                        service="RBAC",
+                        resource=f"RBAC Assignment: {assignment.id}",
+                        issue=issue_desc,
+                        severity=severity,
+                        evidence=f"role_definition_id = {role_id}",
+                        remediation=f"Review if {role_name} is needed at this scope. Apply least privilege.",
+                        frameworks={"cis_azure": "1.23", "mitre": "T1098"},
+                        privilege=15
+                    ).to_dict())
         except Exception as e:
             pass
         return findings

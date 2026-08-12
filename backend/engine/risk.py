@@ -14,31 +14,19 @@ class RiskEngine:
 
     def calculate_risk(self, finding: dict) -> int:
         """
-        Calculates the risk score for a single finding.
-        Updates the finding dictionary with a 'risk_score' and 'risk_level' key.
+        Calculates the risk score for a single finding based on explicit attributes.
+        Updates the finding dictionary with 'risk_score', 'risk_level', and 'risk_factors'.
         """
         base_severity = finding.get('severity', 'Low')
-        score = self.SEVERITY_WEIGHTS.get(base_severity, 10)
+        severity_score = self.SEVERITY_WEIGHTS.get(base_severity, 10)
         
-        issue = finding.get('issue', '').lower()
+        exposure = finding.get("exposure", 0)
+        privilege = finding.get("privilege", 0)
+        data_sensitivity = finding.get("data_sensitivity", 0)
+        exploitability = finding.get("exploitability", 0)
         
-        # 1. Exposure (e.g., public internet access) (+20)
-        if '0.0.0.0/0' in issue or 'public' in issue or 'internet' in issue:
-            score += 20
-            
-        # 2. Privilege (e.g., AdministratorAccess, Owner, root) (+15)
-        if 'administrator' in issue or 'owner' in issue or 'root' in issue or '*' in issue:
-            score += 15
-            
-        # 3. Data Sensitivity (e.g., S3 buckets, RDS/SQL databases) (+15)
-        resource = finding.get('resource', '').lower()
-        if 's3' in resource or 'database' in resource or 'storage' in resource:
-            score += 15
-            
-        # 4. Exploitability (e.g., unencrypted, missing MFA, plaintext) (+10)
-        if 'mfa' in issue or 'encrypt' in issue or 'disabled' in issue or 'unrestricted' in issue:
-            score += 10
-            
+        score = severity_score + exposure + privilege + data_sensitivity + exploitability
+        
         # Cap score at 100
         score = min(score, 100)
         
@@ -55,6 +43,22 @@ class RiskEngine:
             finding['risk_level'] = 'PASSED'
             
         finding['risk_score'] = score
+        
+        # Generate risk factors explanation
+        factors = []
+        if exposure > 0:
+            factors.append("Internet or broadly exposed")
+        if privilege > 0:
+            factors.append("High privileges granted")
+        if data_sensitivity > 0:
+            factors.append("Sensitive data or storage resource")
+        if exploitability > 0:
+            factors.append("Easily exploitable configuration (e.g. unencrypted, no MFA)")
+        if severity_score >= 30:
+            factors.append(f"Base severity is {base_severity}")
+            
+        finding['risk_factors'] = factors
+        
         return score
 
     def evaluate_findings(self, findings: list) -> list:

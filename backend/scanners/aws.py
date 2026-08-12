@@ -18,7 +18,16 @@ class AWSScanner(BaseScanner):
 
     def scan_all(self):
         if not self.is_authenticated:
-            return [{"resource": "AWS Global", "issue": "Authentication Failed: No AWS Credentials Found", "severity": "Critical"}]
+            return [{
+                "provider": "AWS",
+                "service": "Global",
+                "resource": "Authentication",
+                "issue": "Authentication Failed: No AWS Credentials Found",
+                "severity": "Critical",
+                "evidence": "boto3.client failed",
+                "remediation": "Configure aws credentials using 'aws configure'",
+                "framework": {"cis": "N/A", "mitre": "N/A"}
+            }]
         
         findings = []
         findings.extend(self.scan_iam())
@@ -27,22 +36,37 @@ class AWSScanner(BaseScanner):
         findings.extend(self.scan_cloudtrail())
         return findings
 
+    def _create_finding(self, service, resource, issue, severity, evidence, remediation, cis="N/A", mitre="N/A"):
+        return {
+            "provider": "AWS",
+            "service": service,
+            "resource": resource,
+            "issue": issue,
+            "severity": severity,
+            "evidence": evidence,
+            "remediation": remediation,
+            "framework": {
+                "cis": cis,
+                "mitre": mitre
+            }
+        }
+
     def scan_iam(self):
         findings = []
         try:
             # Check Root MFA
             summary = self.iam.get_account_summary()
             if summary['SummaryMap'].get('AccountMFAEnabled', 0) == 0:
-                findings.append({"resource": "IAM Root Account", "issue": "Root account does not have MFA enabled", "severity": "Critical"})
+                findings.append(self._create_finding("IAM", "Root Account", "Root account does not have MFA enabled", "Critical", "AccountMFAEnabled == 0", "Enable MFA for root user", "1.1"))
             
             # Check Password Policy
             try:
                 pw_policy = self.iam.get_account_password_policy()
                 if not pw_policy['PasswordPolicy'].get('RequireUppercaseCharacters') or not pw_policy['PasswordPolicy'].get('RequireSymbols'):
-                    findings.append({"resource": "IAM Password Policy", "issue": "Password policy is weak (does not require uppercase or symbols)", "severity": "Medium"})
+                    findings.append(self._create_finding("IAM", "Password Policy", "Password policy is weak (does not require uppercase or symbols)", "Medium", "Policy lacks complexity", "Enforce strong password policy", "1.8"))
             except ClientError as e:
                 if e.response['Error']['Code'] == 'NoSuchEntity':
-                    findings.append({"resource": "IAM Password Policy", "issue": "No account password policy set", "severity": "High"})
+                    findings.append(self._create_finding("IAM", "Password Policy", "No account password policy set", "High", "NoSuchEntity", "Create an account password policy", "1.8"))
 
             # Users
             users = self.iam.list_users()['Users']
@@ -52,24 +76,20 @@ class AWSScanner(BaseScanner):
                 try:
                     mfa_devices = self.iam.list_mfa_devices(UserName=user_name)['MFADevices']
                     if not mfa_devices:
-                        findings.append({
-                            "resource": f"IAM User: {user_name}",
-                            "issue": "IAM user does not have MFA enabled",
-                            "severity": "High"
-                        })
+                        findings.append(self._create_finding("IAM", f"User: {user_name}", "IAM user does not have MFA enabled", "High", "No MFA devices found", "Enable MFA for user", "1.10"))
                 except Exception:
                     pass
 
                 # Check direct inline policies
                 inline_policies = self.iam.list_user_policies(UserName=user_name)['PolicyNames']
                 if inline_policies:
-                    findings.append({"resource": f"IAM User: {user_name}", "issue": "User has direct inline policies attached", "severity": "Medium"})
+                    findings.append(self._create_finding("IAM", f"User: {user_name}", "User has direct inline policies attached", "Medium", f"Policies: {inline_policies}", "Use groups and managed policies instead", "1.15"))
                 
                 # Check attached managed policies for AdministratorAccess and wildcard
                 attached = self.iam.list_attached_user_policies(UserName=user_name)['AttachedPolicies']
                 for pol in attached:
                     if pol['PolicyName'] == 'AdministratorAccess':
-                        findings.append({"resource": f"IAM User: {user_name}", "issue": "User has AdministratorAccess directly attached", "severity": "High"})
+                        findings.append(self._create_finding("IAM", f"User: {user_name}", "User has AdministratorAccess directly attached", "High", "Attached: AdministratorAccess", "Remove AdministratorAccess and apply least privilege", "1.15"))
                     else:
                         try:
                             arn = pol['PolicyArn']
@@ -83,11 +103,7 @@ class AWSScanner(BaseScanner):
                                     resources = stat.get('Resource', [])
                                     if isinstance(resources, str): resources = [resources]
                                     if '*' in actions and '*' in resources:
-                                        findings.append({
-                                            "resource": f"IAM Policy: {pol['PolicyName']}",
-                                            "issue": "Policy grants wildcard Action and Resource permissions",
-                                            "severity": "Critical"
-                                        })
+                                        findings.append(self._create_finding("IAM", f"Policy: {pol['PolicyName']}", "Policy grants wildcard Action and Resource permissions", "Critical", "Action: *, Resource: *", "Remove wildcard permissions", "1.22"))
                         except Exception:
                             pass
 
@@ -96,10 +112,10 @@ class AWSScanner(BaseScanner):
                 for key in keys:
                     age_days = (now - key['CreateDate']).days
                     if age_days > 90:
-                        findings.append({"resource": f"IAM Access Key: {key['AccessKeyId']}", "issue": f"Access key is older than 90 days ({age_days} days)", "severity": "Medium"})
+                        findings.append(self._create_finding("IAM", f"Access Key: {key['AccessKeyId']}", f"Access key is older than 90 days ({age_days} days)", "Medium", f"Age: {age_days}", "Rotate access key", "1.14"))
                     
                     if key['Status'] == 'Inactive' and age_days > 90:
-                         findings.append({"resource": f"IAM Access Key: {key['AccessKeyId']}", "issue": "Inactive access key has not been deleted after 90 days", "severity": "Low"})
+                         findings.append(self._create_finding("IAM", f"Access Key: {key['AccessKeyId']}", "Inactive access key has not been deleted after 90 days", "Low", f"Inactive Age: {age_days}", "Delete inactive key", "1.14"))
             
             # Cross-account risky trust & wildcard
             roles = self.iam.list_roles()['Roles']
@@ -108,9 +124,9 @@ class AWSScanner(BaseScanner):
                 for stat in doc.get('Statement', []):
                     # Check wildcard principle
                     if stat.get('Effect') == 'Allow' and stat.get('Principal') == '*':
-                         findings.append({"resource": f"IAM Role: {role['RoleName']}", "issue": "Role trust policy allows all AWS accounts (*)", "severity": "Critical"})
+                         findings.append(self._create_finding("IAM", f"Role: {role['RoleName']}", "Role trust policy allows all AWS accounts (*)", "Critical", "Principal: *", "Restrict trust policy to known accounts", "1.22"))
         except Exception as e:
-            findings.append({"resource": "IAM", "issue": f"Failed to scan IAM: {str(e)}", "severity": "Low"})
+            findings.append(self._create_finding("IAM", "Global", f"Failed to scan IAM: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings
 
     def scan_s3(self):
@@ -125,23 +141,23 @@ class AWSScanner(BaseScanner):
                     bpa = self.s3.get_public_access_block(Bucket=name)
                     config = bpa['PublicAccessBlockConfiguration']
                     if not (config.get('BlockPublicAcls') and config.get('IgnorePublicAcls') and config.get('BlockPublicPolicy') and config.get('RestrictPublicBuckets')):
-                        findings.append({"resource": f"S3: {name}", "issue": "Bucket does not block all public access", "severity": "High"})
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not block all public access", "High", "BPA config incomplete", "Enable Block Public Access completely", "2.1.1"))
                 except ClientError as e:
                     if e.response['Error']['Code'] == 'NoSuchPublicAccessBlockConfiguration':
-                        findings.append({"resource": f"S3: {name}", "issue": "Bucket does not have Block Public Access enabled", "severity": "High"})
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not have Block Public Access enabled", "High", "No BPA configuration", "Enable Block Public Access", "2.1.1"))
                 
                 # Encryption
                 try:
                     self.s3.get_bucket_encryption(Bucket=name)
                 except ClientError as e:
                     if e.response['Error']['Code'] == 'ServerSideEncryptionConfigurationNotFoundError':
-                        findings.append({"resource": f"S3: {name}", "issue": "Bucket does not have default Server-Side Encryption enabled", "severity": "Medium"})
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket does not have default Server-Side Encryption enabled", "Medium", "No SSE config", "Enable default encryption", "2.1.2"))
                 
                 # Versioning
                 try:
                     vers = self.s3.get_bucket_versioning(Bucket=name)
                     if vers.get('Status') != 'Enabled':
-                        findings.append({"resource": f"S3: {name}", "issue": "Bucket versioning is not enabled", "severity": "Low"})
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket versioning is not enabled", "Low", "Versioning disabled", "Enable versioning", "N/A"))
                 except Exception:
                     pass
                 
@@ -149,7 +165,7 @@ class AWSScanner(BaseScanner):
                 try:
                     log_res = self.s3.get_bucket_logging(Bucket=name)
                     if not log_res.get('LoggingEnabled'):
-                        findings.append({"resource": f"S3: {name}", "issue": "Bucket server access logging is not enabled", "severity": "Low"})
+                        findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket server access logging is not enabled", "Low", "Logging disabled", "Enable server access logging", "2.1.3"))
                 except Exception:
                     pass
 
@@ -159,7 +175,7 @@ class AWSScanner(BaseScanner):
                     for grant in acls.get('Grants', []):
                         grantee = grant.get('Grantee', {})
                         if grantee.get('URI') in ['http://acs.amazonaws.com/groups/global/AllUsers', 'http://acs.amazonaws.com/groups/global/AuthenticatedUsers']:
-                            findings.append({"resource": f"S3: {name}", "issue": "Bucket ACL allows public or any authenticated AWS user access", "severity": "Critical"})
+                            findings.append(self._create_finding("S3", f"Bucket: {name}", "Bucket ACL allows public or any authenticated AWS user access", "Critical", f"Grantee: {grantee.get('URI')}", "Remove public ACLs", "2.1.1"))
                 except Exception:
                     pass
 
@@ -174,16 +190,12 @@ class AWSScanner(BaseScanner):
                                 actions = stat.get('Action', [])
                                 if isinstance(actions, str): actions = [actions]
                                 if 's3:GetObject' in actions or 's3:*' in actions or '*' in actions:
-                                    findings.append({
-                                        "resource": f"S3: {name}",
-                                        "issue": "S3 bucket policy allows public object access",
-                                        "severity": "Critical"
-                                    })
+                                    findings.append(self._create_finding("S3", f"Bucket: {name}", "S3 bucket policy allows public object access", "Critical", "Principal: *", "Remove public bucket policy", "2.1.1"))
                 except Exception:
                     pass
 
         except Exception as e:
-            findings.append({"resource": "S3", "issue": f"Failed to scan S3: {str(e)}", "severity": "Low"})
+            findings.append(self._create_finding("S3", "Global", f"Failed to scan S3: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings
 
     def scan_security_groups(self):
@@ -198,35 +210,19 @@ class AWSScanner(BaseScanner):
                             from_port = perm.get('FromPort')
                             to_port = perm.get('ToPort')
                             if from_port in [22, 3389]:
-                                findings.append({
-                                    "resource": f"EC2 SG: {sg['GroupId']}",
-                                    "issue": f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port} (SSH/RDP)",
-                                    "severity": "Critical"
-                                })
+                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port} (SSH/RDP)", "Critical", f"Port: {from_port}", "Restrict source to known IPs", "4.1"))
                             elif from_port in [3306, 5432, 1433, 6379, 27017, 9200, 23]:
-                                findings.append({
-                                    "resource": f"EC2 SG: {sg['GroupId']}",
-                                    "issue": f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port}",
-                                    "severity": "High"
-                                })
+                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on sensitive port {from_port}", "High", f"Port: {from_port}", "Restrict source to known IPs", "4.2"))
                             elif from_port == 21:
-                                findings.append({
-                                    "resource": f"EC2 SG: {sg['GroupId']}",
-                                    "issue": f"Allows ingress from 0.0.0.0/0 on port {from_port} (FTP)",
-                                    "severity": "Medium"
-                                })
+                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", f"Allows ingress from 0.0.0.0/0 on port {from_port} (FTP)", "Medium", f"Port: {from_port}", "Restrict source to known IPs", "N/A"))
                 # Egress
                 for perm in sg.get('IpPermissionsEgress', []):
                     if perm.get('IpProtocol') == '-1': # All traffic
                         for ip_range in perm.get('IpRanges', []):
                             if ip_range.get('CidrIp') == '0.0.0.0/0':
-                                findings.append({
-                                    "resource": f"EC2 SG: {sg['GroupId']}",
-                                    "issue": "Allows unrestricted egress traffic (0.0.0.0/0 on all ports)",
-                                    "severity": "Low"
-                                })
+                                findings.append(self._create_finding("EC2", f"SG: {sg['GroupId']}", "Allows unrestricted egress traffic (0.0.0.0/0 on all ports)", "Low", "Egress: 0.0.0.0/0", "Restrict outbound traffic", "N/A"))
         except Exception as e:
-            findings.append({"resource": "EC2 SGs", "issue": f"Failed to scan Security Groups: {str(e)}", "severity": "Low"})
+            findings.append(self._create_finding("EC2", "Global", f"Failed to scan Security Groups: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings
 
     def scan_cloudtrail(self):
@@ -234,28 +230,28 @@ class AWSScanner(BaseScanner):
         try:
             trails = self.cloudtrail.describe_trails()['trailList']
             if not trails:
-                findings.append({"resource": "CloudTrail", "issue": "No CloudTrail trails exist", "severity": "Critical"})
+                findings.append(self._create_finding("CloudTrail", "Global", "No CloudTrail trails exist", "Critical", "No trails", "Create a multi-region CloudTrail", "3.1"))
                 return findings
 
             multi_region_enabled = any(t.get('IsMultiRegionTrail', False) for t in trails)
             if not multi_region_enabled:
-                findings.append({"resource": "CloudTrail", "issue": "No multi-region CloudTrail is enabled", "severity": "High"})
+                findings.append(self._create_finding("CloudTrail", "Global", "No multi-region CloudTrail is enabled", "High", "IsMultiRegionTrail=False", "Enable multi-region trail", "3.1"))
             
             for t in trails:
                 name = t.get('Name')
                 # Log validation
                 if not t.get('LogFileValidationEnabled'):
-                    findings.append({"resource": f"CloudTrail: {name}", "issue": "Log file validation is disabled", "severity": "Medium"})
+                    findings.append(self._create_finding("CloudTrail", f"Trail: {name}", "Log file validation is disabled", "Medium", "LogFileValidationEnabled=False", "Enable log file validation", "3.2"))
                 # KMS Encryption
                 if not t.get('KmsKeyId'):
-                    findings.append({"resource": f"CloudTrail: {name}", "issue": "Logs are not encrypted with a KMS CMK", "severity": "Medium"})
+                    findings.append(self._create_finding("CloudTrail", f"Trail: {name}", "Logs are not encrypted with a KMS CMK", "Medium", "No KmsKeyId", "Enable KMS CMK encryption", "3.7"))
                 
                 # Management events
                 try:
                     selectors = self.cloudtrail.get_event_selectors(TrailName=name).get('EventSelectors', [])
                     has_management = any(s.get('IncludeManagementEvents') for s in selectors)
                     if not has_management:
-                         findings.append({"resource": f"CloudTrail: {name}", "issue": "Trail does not record management events", "severity": "High"})
+                         findings.append(self._create_finding("CloudTrail", f"Trail: {name}", "Trail does not record management events", "High", "No management events", "Enable management events", "3.1"))
                 except Exception:
                     pass
 
@@ -263,14 +259,10 @@ class AWSScanner(BaseScanner):
                 try:
                     status = self.cloudtrail.get_trail_status(Name=name)
                     if not status.get('IsLogging'):
-                        findings.append({
-                            "resource": f"CloudTrail: {name}",
-                            "issue": "CloudTrail trail exists but logging is disabled",
-                            "severity": "Critical"
-                        })
+                        findings.append(self._create_finding("CloudTrail", f"Trail: {name}", "CloudTrail trail exists but logging is disabled", "Critical", "IsLogging=False", "Enable logging", "3.1"))
                 except Exception:
                     pass
 
         except Exception as e:
-            findings.append({"resource": "CloudTrail", "issue": f"Failed to scan CloudTrail: {str(e)}", "severity": "Low"})
+            findings.append(self._create_finding("CloudTrail", "Global", f"Failed to scan CloudTrail: {str(e)}", "Low", "Exception thrown", "Check permissions", "N/A"))
         return findings

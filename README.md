@@ -1,84 +1,59 @@
-# ☁️ CloudSentinel
+# CloudSentinel
 
-**Multi-Cloud Security Posture Analyzer**
+**Multi-cloud security posture management and misconfiguration detection platform for AWS and Azure.**
 
-CloudSentinel is an automated Cloud Security Posture Management (CSPM) tool designed to audit AWS and Azure environments for critical security misconfigurations. 
+![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
+![AWS](https://img.shields.io/badge/AWS-Supported-FF9900?logo=amazonaws)
+![Azure](https://img.shields.io/badge/Azure-Supported-0089D6?logo=microsoftazure)
+![Terraform](https://img.shields.io/badge/Terraform-Lab-7B42BC?logo=terraform)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
+![GitHub Actions](https://img.shields.io/badge/CI%2FCD-Active-2088FF?logo=githubactions)
+![Security](https://img.shields.io/badge/Security-Hardened-success)
 
-It replaces manual cloud console checks with a fast, deterministic **Risk Engine** that outputs actionable findings mapped to severity levels.
+CloudSentinel replaces manual cloud console checks with a fast, deterministic **Risk Engine** that outputs actionable findings mapped to severity levels.
+
+## 🚀 Features
+- **✓ AWS security scanning**: Analyzes AWS resources using `boto3`.
+- **✓ Azure security scanning**: Analyzes Azure resources using `azure-identity`.
+- **✓ IAM/RBAC analysis**: Detects over-privileged roles, Root MFA, and direct admin access.
+- **✓ Storage exposure detection**: Identifies public S3 buckets and Azure Blob containers.
+- **✓ Network security analysis**: Highlights exposed `0.0.0.0/0` SSH/RDP ingress rules.
+- **✓ Cloud logging checks**: Ensures CloudTrail and Azure Monitor are correctly deployed.
+- **✓ Deterministic risk scoring**: Normalized 0-100 risk score engine.
+- **✓ Remediation guidance**: Step-by-step instructions on mitigating detected flaws.
+- **✓ JSON reports**: Machine-readable output for SIEM/CI integration.
+- **✓ HTML reports**: Beautiful, interactive security dashboards.
+- **✓ Terraform vulnerable labs**: Intentionally vulnerable IaaC for local testing.
+- **✓ Automated CI security checks**: Secret scanning, dependencies, linting, and tests.
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph TD
-    A[AWS / Azure] --> B[CloudSentinel CLI]
-    B --> C[Cloud Scanners (AWS + Azure)]
-    C --> D[Finding Model]
-    D --> E[Risk Engine]
-    E --> F[Remediation]
-    F --> G[JSON]
-    F --> H[HTML]
-```
-
-## 🚀 Features
-- **Real SDK Integration**: Uses official `boto3` (AWS) and `azure-identity` (Azure) SDKs for live environment interrogation.
-- **Advanced Risk Engine**: Calculates a normalized 0-100 risk score based on Base Severity, Exposure, Privilege, Data Sensitivity, and Exploitability.
-- **AWS Audits**:
-  - IAM: Root MFA checks, password policies, dangerous inline policies, AdministratorAccess, wildcard privileges, old access keys.
-  - S3: Public bucket exposure, missing default encryption, versioning, ACLs, logging.
-  - EC2/Security Groups: Open `0.0.0.0/0` access on sensitive ports (22, 3389, 3306, 5432, 1433) and unrestricted egress.
-  - CloudTrail: Verifies multi-region trails, log validation, and KMS encryption.
-- **Azure Audits**:
-  - Storage Accounts: Checks for "Secure Transfer Required" and Public Blob access.
-  - Network Security Groups (NSG): Inbound rules allowing Internet to sensitive ports.
-  - RBAC: Subscription-level over-privileged Owner and User Access Administrator roles.
-  - Monitor: Validates diagnostic settings log retention policies.
-
-## ⚙️ Installation & Usage
-
-### 1. Setup
-```bash
-git clone https://github.com/raghavkhandal72-coder/CloudSentinel.git
-cd CloudSentinel
-pip install -r backend/requirements.txt
-```
-
-### 2. Run the Scanner
-You can scan either AWS, Azure, or both simultaneously. Ensure you have authenticated to your cloud providers locally (`aws configure` or `az login`).
-
-```bash
-python backend/main.py --aws --azure
-```
-
-**Interview / Recruiter Mode (No Cloud Credentials Needed):**
-```bash
-python backend/main.py --mock
-```
-This mode simulates a deliberately vulnerable multi-cloud environment locally, returning realistic findings instantly without incurring cloud costs or requiring authentication.
-
-### 3. Reporting Options
-CloudSentinel supports Markdown (default), JSON, and HTML reports:
-
-```bash
-# Markdown (Default Terminal Output)
-python backend/main.py --mock --report md
-
-# JSON (For CI/CD or SIEM ingestion)
-python backend/main.py --mock --report json
-
-# HTML (Interactive Dashboard output)
-python backend/main.py --mock --report html
+                         A[AWS / Azure] --> B[CloudSentinel CLI]
+                         B --> C[AWS Scanner]
+                         B --> D[Azure Scanner]
+                         
+                         C --> E[Finding Model]
+                         D --> E
+                         
+                         E --> F[Risk Engine]
+                         F --> G[Remediation]
+                         
+                         G --> H[Report Engine]
+                         H --> I[JSON]
+                         H --> J[HTML]
 ```
 
 ## 🎥 Demo
 
 ### Vulnerable Lab
 
-Terraform provisions intentionally insecure test resources (S3, Security Groups, IAM, Azure Blob, NSG, RBAC).
+The repository includes a `lab/terraform/` directory that provisions intentionally insecure test resources (S3, Security Groups, IAM, Azure Blob, NSG, RBAC). **⚠️ ONLY use this in isolated test accounts.**
 
 ### Scan
 
 CloudSentinel detects:
-
 - IAM misconfiguration
 - Public storage
 - Network exposure
@@ -89,37 +64,55 @@ CloudSentinel detects:
 
 JSON + HTML security reports are generated with actionable remediation steps.
 
-### Safety
+*(Demo screenshots can be viewed in the `reports/` output when generated.)*
 
-The Terraform lab is intentionally vulnerable and must only be deployed into a dedicated test environment.
+## ⚙️ Installation & Usage
 
-## 📊 Sample Output (Markdown)
-```text
-# CloudSentinel Security Report
+### 1. Setup
+```bash
+git clone https://github.com/raghavkhandal72-coder/CloudSentinel.git
+cd CloudSentinel
 
-## Summary
-Critical: 0
-High:     3
-Medium:   2
-Low:      0
+# Setup virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-## Detailed Findings
-### [High] (Score: 75) AWS S3: company-prod-backups
-**Issue:** Bucket does not block all public access
-**Why is this Risk Level?**
-  - Internet or broadly exposed
-  - Sensitive data or storage resource
-  - Base severity is Critical
-**Remediation:** Enable Block Public Access completely
+# Install dependencies
+pip install -r backend/requirements.txt
 ```
 
-## 🧪 Testing and CI/CD
-CloudSentinel uses `pytest` for comprehensive testing and `bandit` for SAST.
-Tests are run automatically via GitHub Actions on every push to `main`.
+### 2. Run the Scanner (Mock Demo)
+
+Recruiters and evaluators can immediately run the scanner in mock mode to simulate a multi-cloud environment locally, without needing actual AWS/Azure credentials!
 
 ```bash
-python -m pytest tests/
+python -m backend.main --mock --report html
+```
+
+### 3. Run on Live Environment
+
+Ensure you have authenticated to your cloud providers locally (`aws configure` or `az login`).
+
+```bash
+python -m backend.main --aws --azure --report md
+```
+
+*Note: Required Environment Variables (if using Docker/Compose instead of local profiles): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`.*
+
+## 🧪 Testing and CI/CD
+CloudSentinel is highly tested and secured via GitHub Actions.
+
+Run the test suite locally:
+```bash
+pytest -q
+```
+
+Quality and security checks:
+```bash
+ruff check .
+bandit -r backend/
+pip-audit -r backend/requirements.txt
 ```
 
 ## ⚠️ Security Notice
-This tool runs read-only queries against your cloud environments. **Never commit `.env` files or credentials to version control.** A strict `.gitignore` is provided in this repository.
+This tool runs read-only queries against your cloud environments. Please review `SECURITY.md` for our vulnerability disclosure policy and credential handling guidelines.

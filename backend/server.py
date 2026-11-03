@@ -3,11 +3,13 @@ import os
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from backend.engine.compliance import ComplianceEngine
 from backend.engine.remediation import RemediationEngine
 from backend.engine.risk import RiskEngine
 from backend.main import generate_mock_findings
 from backend.scanners.aws import AWSScanner
 from backend.scanners.azure import AzureScanner
+from backend.scanners.gcp import GCPScanner
 
 _cached_findings: list[dict] = []
 
@@ -19,12 +21,15 @@ def run_scan(target: str = "mock") -> list[dict]:
     if target == "mock":
         findings.extend(generate_mock_findings())
     else:
-        if "aws" in target:
+        if "aws" in target or target == "all":
             aws = AWSScanner()
             findings.extend(aws.scan_all())
-        if "azure" in target:
+        if "azure" in target or target == "all":
             azure = AzureScanner()
             findings.extend(azure.scan_all())
+        if "gcp" in target or target == "all":
+            gcp = GCPScanner()
+            findings.extend(gcp.scan_all())
 
     risk_engine = RiskEngine()
     evaluated = risk_engine.evaluate_findings(findings)
@@ -73,9 +78,11 @@ def calculate_dashboard_stats(findings: list[dict]) -> dict:
     # Score calculation: 100 base, deducted by finding severities
     deduction = (critical * 20) + (high * 10) + (medium * 5)
     overall_score = max(0, 100 - deduction)
+    grade = ComplianceEngine.calculate_posture_grade(overall_score)
 
     return {
         "score": overall_score,
+        "grade": grade,
         "critical": critical,
         "high": high,
         "medium": medium,

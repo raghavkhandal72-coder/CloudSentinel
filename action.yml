@@ -1,0 +1,40 @@
+name: 'CloudSentinel Multi-Cloud CSPM'
+description: 'Enterprise Multi-Cloud Security Posture Management & Compliance Analyzer for AWS, Azure, and GCP'
+author: 'Raghav Khandal'
+inputs:
+  target:
+    description: 'Target cloud environment to scan (mock, aws, azure, gcp, all)'
+    required: false
+    default: 'mock'
+  fail-on:
+    description: 'Exit with error code 1 if findings meet or exceed this risk level (critical, high, medium, low)'
+    required: false
+    default: 'high'
+  report:
+    description: 'Output format (json, html, md, sarif, csv)'
+    required: false
+    default: 'sarif'
+  output:
+    description: 'File path to save the generated report'
+    required: false
+    default: 'cloudsentinel-results.sarif'
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install CloudSentinel
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r ${{ github.action_path }}/backend/requirements.txt
+        pip install -e ${{ github.action_path }}
+    - name: Run CloudSentinel Scan
+      shell: bash
+      run: |
+        cloudsentinel --${{ inputs.target }} --report ${{ inputs.report }} -o ${{ inputs.output }} --fail-on ${{ inputs.fail-on }}
+branding:
+  icon: 'shield'
+  color: 'blue'

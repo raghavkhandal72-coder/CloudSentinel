@@ -124,6 +124,33 @@ class RemediationEngine:
             "cli_command": "az sql server firewall-rule delete --name <rule-name> --server <server-name> --resource-group <rg-name>",
             "terraform": 'resource "azurerm_mssql_server" "remediation" {\n  # ...\n  public_network_access_enabled = false\n}'
         },
+        "gcp_storage": {
+            "title": "Disable Public Access on Cloud Storage Bucket",
+            "steps": [
+                "Remove allUsers and allAuthenticatedUsers from bucket IAM policy",
+                "Enforce uniform bucket-level access"
+            ],
+            "cli_command": "gcloud storage buckets remove-iam-policy-binding <bucket> --member=allUsers --role=roles/storage.objectViewer",
+            "terraform": 'resource "google_storage_bucket_iam_binding" "remediation" {\n  bucket = google_storage_bucket.example.name\n  role   = "roles/storage.objectViewer"\n  members = []\n}'
+        },
+        "gcp_firewall": {
+            "title": "Restrict Inbound Compute Firewall Exposure",
+            "steps": [
+                "Remove 0.0.0.0/0 from firewall source ranges",
+                "Use Identity-Aware Proxy (IAP) for administrative access"
+            ],
+            "cli_command": "gcloud compute firewall-rules update <rule-name> --source-ranges=<trusted-cidr>",
+            "terraform": 'resource "google_compute_firewall" "remediation" {\n  name    = "allow-ssh"\n  network = "default"\n  source_ranges = ["10.0.0.0/16"]\n}'
+        },
+        "gcp_sql_public": {
+            "title": "Disable Public IP and Restrict Authorized Networks on Cloud SQL",
+            "steps": [
+                "Remove 0.0.0.0/0 from authorized networks",
+                "Use Cloud SQL Auth Proxy or Private Service Access (VPC)"
+            ],
+            "cli_command": "gcloud sql instances patch <instance-name> --no-assign-ip",
+            "terraform": 'resource "google_sql_database_instance" "remediation" {\n  settings {\n    ip_configuration {\n      ipv4_enabled = false\n    }\n  }\n}'
+        },
         "default": {
             "title": "Manual Review Required",
             "steps": [
@@ -143,7 +170,15 @@ class RemediationEngine:
             issue = finding.get('issue', '').lower()
             
             matched_key = None
-            if "public" in issue and ("bucket" in issue or "s3" in issue):
+            provider = finding.get("provider", "")
+            if provider == "GCP":
+                if "bucket" in issue or "storage" in issue:
+                    matched_key = "gcp_storage"
+                elif "firewall" in issue or "ssh" in issue or "rdp" in issue:
+                    matched_key = "gcp_firewall"
+                elif "sql" in issue:
+                    matched_key = "gcp_sql_public"
+            elif "public" in issue and ("bucket" in issue or "s3" in issue):
                 matched_key = "public_s3"
             elif "public blob" in issue:
                 matched_key = "public_blob"

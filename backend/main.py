@@ -11,12 +11,14 @@ if _project_root not in sys.path:
 
 from backend.engine.remediation import RemediationEngine
 from backend.engine.risk import RiskEngine
+from backend.reports.console import ConsoleReporter
 from backend.reports.csv_report import generate_csv_report
 from backend.reports.html_report import generate_html_report
 from backend.reports.json_report import generate_json_report
 from backend.reports.sarif_report import generate_sarif_report
 from backend.scanners.aws import AWSScanner
 from backend.scanners.azure import AzureScanner
+from backend.scanners.gcp import GCPScanner
 
 
 def generate_mock_findings():
@@ -61,10 +63,12 @@ def main():
     parser = argparse.ArgumentParser(description="CloudSentinel: Enterprise Multi-Cloud Security Posture Analyzer")
     parser.add_argument("--aws", action="store_true", help="Scan AWS environment")
     parser.add_argument("--azure", action="store_true", help="Scan Azure environment")
-    parser.add_argument("--all", action="store_true", help="Scan all configured cloud environments (AWS & Azure)")
+    parser.add_argument("--gcp", action="store_true", help="Scan Google Cloud Platform (GCP) environment")
+    parser.add_argument("--all", action="store_true", help="Scan all configured cloud environments (AWS, Azure & GCP)")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode (simulates a vulnerable environment without cloud credentials)")
     parser.add_argument("--profile", type=str, default=None, help="AWS CLI profile name (e.g. production, security-audit)")
     parser.add_argument("--subscription", type=str, default=None, help="Azure Subscription ID to scan")
+    parser.add_argument("--project", type=str, default=None, help="GCP Project ID to scan")
     parser.add_argument("--report", choices=["json", "html", "md", "sarif", "csv"], default="md", help="Output format (default: md)")
     parser.add_argument("-o", "--output", type=str, default=None, help="Save report directly to output file path")
     parser.add_argument("--fail-on", choices=["critical", "high", "medium", "low"], default=None, help="Exit with code 1 if findings meet or exceed this risk level (CI/CD gate)")
@@ -77,8 +81,8 @@ def main():
         start_server(port=args.port)
         return
 
-    if not args.aws and not args.azure and not args.mock and not args.all:
-        print("Please specify at least one target to scan: --aws, --azure, --all, or --mock (or --serve to start dashboard API)")
+    if not args.aws and not args.azure and not args.gcp and not args.mock and not args.all:
+        print("Please specify at least one target to scan: --aws, --azure, --gcp, --all, or --mock (or --serve to start dashboard API)")
         return
 
     all_findings = []
@@ -93,6 +97,10 @@ def main():
         if args.azure or args.all:
             azure_scan = AzureScanner(subscription_id=args.subscription)
             all_findings.extend(azure_scan.scan_all())
+
+        if args.gcp or args.all:
+            gcp_scan = GCPScanner(project_id=args.project)
+            all_findings.extend(gcp_scan.scan_all())
 
     # Evaluate risk score
     engine = RiskEngine()
@@ -139,7 +147,8 @@ def main():
                 f.write(f_io.getvalue())
             print(f"Markdown Report saved to: {args.output}")
         else:
-            print_markdown(evaluated_findings)
+            reporter = ConsoleReporter()
+            reporter.print_report(evaluated_findings)
 
     if args.fail_on:
         thresholds = {

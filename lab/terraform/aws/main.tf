@@ -6,7 +6,7 @@ provider "aws" {
 resource "aws_s3_bucket" "vulnerable_bucket" {
   bucket        = "cloudsentinel-vulnerable-bucket-${random_id.suffix.hex}"
   force_destroy = true
-  
+
   tags = {
     Name        = "VulnerableBucket"
     Environment = "Lab"
@@ -38,7 +38,7 @@ resource "aws_s3_bucket_policy" "allow_public_read" {
       }
     ]
   })
-  
+
   depends_on = [aws_s3_bucket_public_access_block.vulnerable_bucket_public_access]
 }
 
@@ -67,7 +67,7 @@ resource "aws_security_group" "vulnerable_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   egress {
     from_port   = 0
     to_port     = 0

@@ -13,6 +13,10 @@ class Finding:
     remediation: str
     frameworks: dict[str, str] = field(default_factory=dict)
     
+    # Actionable Auto-Fix Code
+    cli_remediation: str = ""
+    terraform_remediation: str = ""
+
     # Risk Metadata
     exposure: int = 0
     privilege: int = 0
@@ -33,6 +37,8 @@ class Finding:
             "severity": self.severity,
             "evidence": self.evidence,
             "remediation": self.remediation,
+            "cli_remediation": self.cli_remediation,
+            "terraform_remediation": self.terraform_remediation,
             "frameworks": self.frameworks,
             "exposure": self.exposure,
             "privilege": self.privilege,

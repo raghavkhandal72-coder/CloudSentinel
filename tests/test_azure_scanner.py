@@ -227,3 +227,30 @@ def test_activity_logging(scanner):
         findings = scanner.scan_monitor('sub-123')
         assert not any("log retention is less than 90 days" in f['issue'] for f in findings)
         assert any("Activity Log for 'Security' is not enabled" in f['issue'] for f in findings)
+
+
+def test_keyvault_softdelete_and_purge(scanner):
+    with patch("backend.scanners.azure.KeyVaultManagementClient") as mock_kv:
+        vault = MagicMock()
+        vault.name = "prod-keyvault"
+        vault.properties.enable_soft_delete = False
+        vault.properties.enable_purge_protection = False
+        vault.properties.network_acls.default_action = "Allow"
+        mock_kv.return_value.vaults.list_by_subscription.return_value = [vault]
+
+        findings = scanner.scan_keyvault("sub-123")
+        assert any("soft delete is disabled" in f["issue"] for f in findings)
+        assert any("purge protection is not enabled" in f["issue"] for f in findings)
+        assert any("allowed from all networks" in f["issue"] for f in findings)
+
+
+def test_sql_public_access(scanner):
+    with patch("backend.scanners.azure.SqlManagementClient") as mock_sql:
+        server = MagicMock()
+        server.name = "prod-sql-server"
+        server.public_network_access = "Enabled"
+        mock_sql.return_value.servers.list.return_value = [server]
+
+        findings = scanner.scan_sql("sub-123")
+        assert any("allows public network access" in f["issue"] for f in findings)
+        assert any(f["severity"] == "Critical" for f in findings)

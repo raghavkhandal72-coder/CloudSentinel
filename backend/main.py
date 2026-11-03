@@ -1,9 +1,17 @@
 import argparse
 import json
 import os
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path for direct script execution
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
 from backend.engine.remediation import RemediationEngine
 from backend.engine.risk import RiskEngine
+from backend.reports.csv_report import generate_csv_report
 from backend.reports.html_report import generate_html_report
 from backend.reports.json_report import generate_json_report
 from backend.reports.sarif_report import generate_sarif_report
@@ -54,7 +62,7 @@ def main():
     parser.add_argument("--aws", action="store_true", help="Scan AWS environment")
     parser.add_argument("--azure", action="store_true", help="Scan Azure environment")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode (simulates a vulnerable environment without cloud credentials)")
-    parser.add_argument("--report", choices=["json", "html", "md", "sarif"], default="md", help="Output format (default: md)")
+    parser.add_argument("--report", choices=["json", "html", "md", "sarif", "csv"], default="md", help="Output format (default: md)")
     parser.add_argument("--serve", action="store_true", help="Start the interactive REST API server and dashboard on port 8000")
     parser.add_argument("--port", type=int, default=8000, help="Port for the server (default: 8000)")
     args = parser.parse_args()
@@ -98,6 +106,9 @@ def main():
     elif args.report == "sarif":
         report = generate_sarif_report(evaluated_findings)
         print(json.dumps(report, indent=2))
+    elif args.report == "csv":
+        report = generate_csv_report(evaluated_findings)
+        print(report)
     else:
         print_markdown(evaluated_findings)
 

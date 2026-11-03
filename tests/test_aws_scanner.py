@@ -17,6 +17,9 @@ def scanner():
         s.s3 = MagicMock()
         s.ec2 = MagicMock()
         s.cloudtrail = MagicMock()
+        s.rds = MagicMock()
+        s.kms = MagicMock()
+        s.guardduty = MagicMock()
         return s
 
 def test_aws_scanner_unauthenticated():
@@ -174,3 +177,33 @@ def test_cloudtrail_not_multiregion(scanner):
     scanner.cloudtrail.get_trail_status.return_value = {'IsLogging': True}
     findings = scanner.scan_cloudtrail()
     assert any("No multi-region CloudTrail is enabled" in f['issue'] for f in findings)
+
+def test_rds_public(scanner):
+    scanner.rds.describe_db_instances.return_value = {
+        'DBInstances': [{
+            'DBInstanceIdentifier': 'prod-db',
+            'PubliclyAccessible': True,
+            'StorageEncrypted': False,
+            'BackupRetentionPeriod': 0,
+            'DeletionProtection': False,
+        }]
+    }
+    findings = scanner.scan_rds()
+    assert any("publicly accessible" in f['issue'] for f in findings)
+    assert any("storage is not encrypted at rest" in f['issue'] for f in findings)
+    assert any("backups are disabled" in f['issue'] for f in findings)
+    assert any("deletion protection is disabled" in f['issue'] for f in findings)
+
+def test_kms_rotation(scanner):
+    scanner.kms.list_keys.return_value = {'Keys': [{'KeyId': 'k-123'}]}
+    scanner.kms.describe_key.return_value = {
+        'KeyMetadata': {'KeyManager': 'CUSTOMER', 'KeyState': 'Enabled'}
+    }
+    scanner.kms.get_key_rotation_status.return_value = {'KeyRotationEnabled': False}
+    findings = scanner.scan_kms()
+    assert any("automatic yearly rotation enabled" in f['issue'] for f in findings)
+
+def test_guardduty_disabled(scanner):
+    scanner.guardduty.list_detectors.return_value = {'DetectorIds': []}
+    findings = scanner.scan_guardduty()
+    assert any("GuardDuty continuous threat detection is not enabled" in f['issue'] for f in findings)

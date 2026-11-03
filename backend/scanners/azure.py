@@ -200,9 +200,9 @@ class AzureScanner(BaseScanner):
             assignments = auth_client.role_assignments.list_for_subscription()
             
             # Common highly privileged Azure built-in role IDs
-            OWNER_ROLE_ID = "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"
-            CONTRIBUTOR_ROLE_ID = "b24988ac-6180-42a0-ab88-20f7382dd24c"
-            USER_ACCESS_ADMIN_ROLE_ID = "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"
+            OWNER_ROLE_ID = "8e3af657-a8ff-443c-a75c-2fe8c4bcb635"  # gitleaks:allow
+            CONTRIBUTOR_ROLE_ID = "b24988ac-6180-42a0-ab88-20f7382dd24c"  # gitleaks:allow
+            USER_ACCESS_ADMIN_ROLE_ID = "18d7d88d-d35e-4fb5-a5c3-7773c20a72d9"  # gitleaks:allow
             
             for assign in assignments:
                 role_def_id = assign.role_definition_id.split('/')[-1]

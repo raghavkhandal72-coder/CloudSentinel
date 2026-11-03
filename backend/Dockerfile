@@ -9,7 +9,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy backend codebase into /app/backend to preserve package structure
+COPY . ./backend
+
+# Ensure Python can resolve backend package imports
+ENV PYTHONPATH=/app
 
 RUN chown -R appuser:appuser /app
 

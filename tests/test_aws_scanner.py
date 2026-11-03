@@ -85,7 +85,7 @@ def test_old_access_key(scanner):
     scanner.iam.list_mfa_devices.return_value = {'MFADevices': [{'SerialNumber': '123'}]}
     scanner.iam.list_user_policies.return_value = {'PolicyNames': []}
     scanner.iam.list_attached_user_policies.return_value = {'AttachedPolicies': []}
-    old_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=100)
+    old_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(days=100)
     scanner.iam.list_access_keys.return_value = {'AccessKeyMetadata': [{'AccessKeyId': 'AKIA123', 'CreateDate': old_date, 'Status': 'Active'}]}
     scanner.iam.list_roles.return_value = {'Roles': []}
     

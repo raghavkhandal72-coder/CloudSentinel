@@ -80,7 +80,7 @@ class AWSScanner(BaseScanner):
 
             # Users
             users = self.iam.list_users()['Users']
-            now = datetime.datetime.now(datetime.timezone.utc)
+            now = datetime.datetime.now(datetime.UTC)
             for user in users:
                 user_name = user['UserName']
                 try:

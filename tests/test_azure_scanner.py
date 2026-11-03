@@ -7,8 +7,8 @@ from backend.scanners.azure import AzureScanner
 
 @pytest.fixture
 def scanner():
-    with patch("azure.identity.DefaultAzureCredential"), \
-         patch("azure.mgmt.resource.SubscriptionClient") as mock_sub:
+    with patch("backend.scanners.azure.DefaultAzureCredential"), \
+         patch("backend.scanners.azure.SubscriptionClient") as mock_sub:
         
         mock_sub.return_value.subscriptions.list.return_value = [
             MagicMock(subscription_id='sub-123')

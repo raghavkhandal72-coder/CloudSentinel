@@ -16,7 +16,7 @@ def generate_json_report(findings, output_path=None):
     
     providers = list({f.get('provider') for f in findings if f.get('provider')})
     
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now = datetime.datetime.now(datetime.UTC).isoformat()
     
     report = {
         "metadata": {

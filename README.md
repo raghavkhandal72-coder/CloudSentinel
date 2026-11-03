@@ -20,8 +20,8 @@ CloudSentinel replaces manual cloud console checks with a fast, deterministic **
 - **✓ Cloud logging checks**: Ensures CloudTrail and Azure Monitor are correctly deployed.
 - **✓ Deterministic risk scoring**: Normalized 0-100 risk score engine.
 - **✓ Remediation guidance**: Step-by-step instructions on mitigating detected flaws.
-- **✓ JSON reports**: Machine-readable output for SIEM/CI integration.
-- **✓ HTML reports**: Beautiful, interactive security dashboards.
+- **✓ JSON & SARIF reports**: Machine-readable JSON and OASIS SARIF v2.1.0 output for SIEM and GitHub Code Scanning.
+- **✓ HTML reports & Web Dashboard**: Beautiful interactive reports and built-in REST API dashboard (`--serve`).
 - **✓ Terraform vulnerable labs**: Intentionally vulnerable IaaC for local testing.
 - **✓ Automated CI security checks**: Secret scanning, dependencies, linting, and tests.
 
@@ -85,7 +85,14 @@ pip install -r backend/requirements.txt
 Recruiters and evaluators can immediately run the scanner in mock mode to simulate a multi-cloud environment locally, without needing actual AWS/Azure credentials!
 
 ```bash
+# Generate HTML report
 python -m backend.main --mock --report html
+
+# Generate GitHub Code Scanning SARIF report
+python -m backend.main --mock --report sarif
+
+# Launch Interactive Web Dashboard & REST API on http://127.0.0.1:8000
+python -m backend.main --serve
 ```
 
 ### 3. Run on Live Environment

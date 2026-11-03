@@ -6,6 +6,7 @@ from backend.engine.remediation import RemediationEngine
 from backend.engine.risk import RiskEngine
 from backend.reports.html_report import generate_html_report
 from backend.reports.json_report import generate_json_report
+from backend.reports.sarif_report import generate_sarif_report
 from backend.scanners.aws import AWSScanner
 from backend.scanners.azure import AzureScanner
 
@@ -53,11 +54,18 @@ def main():
     parser.add_argument("--aws", action="store_true", help="Scan AWS environment")
     parser.add_argument("--azure", action="store_true", help="Scan Azure environment")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode (simulates a vulnerable environment without cloud credentials)")
-    parser.add_argument("--report", choices=["json", "html", "md"], default="md", help="Output format (default: md)")
+    parser.add_argument("--report", choices=["json", "html", "md", "sarif"], default="md", help="Output format (default: md)")
+    parser.add_argument("--serve", action="store_true", help="Start the interactive REST API server and dashboard on port 8000")
+    parser.add_argument("--port", type=int, default=8000, help="Port for the server (default: 8000)")
     args = parser.parse_args()
 
+    if args.serve:
+        from backend.server import start_server
+        start_server(port=args.port)
+        return
+
     if not args.aws and not args.azure and not args.mock:
-        print("Please specify at least one target to scan: --aws, --azure, or --mock")
+        print("Please specify at least one target to scan: --aws, --azure, or --mock (or --serve to start dashboard API)")
         return
 
     all_findings = []
@@ -87,6 +95,9 @@ def main():
     elif args.report == "html":
         out_path = generate_html_report(evaluated_findings)
         print(f"HTML Report generated at: {out_path}")
+    elif args.report == "sarif":
+        report = generate_sarif_report(evaluated_findings)
+        print(json.dumps(report, indent=2))
     else:
         print_markdown(evaluated_findings)
 

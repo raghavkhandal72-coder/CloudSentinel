@@ -36,7 +36,7 @@ jobs:
         
     - name: Run Pytest
       run: |
-        PYTHONPATH=backend pytest tests/
+        PYTHONPATH=. pytest tests/
         
     - name: Dependency Vulnerability Scan (pip-audit)
       run: |

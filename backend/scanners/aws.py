@@ -10,16 +10,28 @@ from .base import BaseScanner
 
 
 class AWSScanner(BaseScanner):
-    def __init__(self):
+    def __init__(self, profile_name: str | None = None, region_name: str | None = None):
         super().__init__()
+        self.profile_name = profile_name
+        self.default_region = region_name or "us-east-1"
         try:
-            self.iam = boto3.client('iam', region_name='us-east-1')
-            self.s3 = boto3.client('s3', region_name='us-east-1')
-            self.ec2 = boto3.client('ec2', region_name='us-east-1')
-            self.cloudtrail = boto3.client('cloudtrail', region_name='us-east-1')
-            self.rds = boto3.client('rds', region_name='us-east-1')
-            self.kms = boto3.client('kms', region_name='us-east-1')
-            self.guardduty = boto3.client('guardduty', region_name='us-east-1')
+            if profile_name:
+                session = boto3.Session(profile_name=profile_name)
+                self.iam = session.client('iam', region_name='us-east-1')
+                self.s3 = session.client('s3', region_name=self.default_region)
+                self.ec2 = session.client('ec2', region_name=self.default_region)
+                self.cloudtrail = session.client('cloudtrail', region_name=self.default_region)
+                self.rds = session.client('rds', region_name=self.default_region)
+                self.kms = session.client('kms', region_name=self.default_region)
+                self.guardduty = session.client('guardduty', region_name=self.default_region)
+            else:
+                self.iam = boto3.client('iam', region_name='us-east-1')
+                self.s3 = boto3.client('s3', region_name=self.default_region)
+                self.ec2 = boto3.client('ec2', region_name=self.default_region)
+                self.cloudtrail = boto3.client('cloudtrail', region_name=self.default_region)
+                self.rds = boto3.client('rds', region_name=self.default_region)
+                self.kms = boto3.client('kms', region_name=self.default_region)
+                self.guardduty = boto3.client('guardduty', region_name=self.default_region)
             self.is_authenticated = True
         except (NoCredentialsError, ClientError):
             self.is_authenticated = False

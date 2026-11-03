@@ -58,11 +58,16 @@ def print_markdown(findings):
         print("\n")
 
 def main():
-    parser = argparse.ArgumentParser(description="CloudSentinel: Multi-Cloud Security Posture Analyzer")
+    parser = argparse.ArgumentParser(description="CloudSentinel: Enterprise Multi-Cloud Security Posture Analyzer")
     parser.add_argument("--aws", action="store_true", help="Scan AWS environment")
     parser.add_argument("--azure", action="store_true", help="Scan Azure environment")
+    parser.add_argument("--all", action="store_true", help="Scan all configured cloud environments (AWS & Azure)")
     parser.add_argument("--mock", action="store_true", help="Run in mock mode (simulates a vulnerable environment without cloud credentials)")
+    parser.add_argument("--profile", type=str, default=None, help="AWS CLI profile name (e.g. production, security-audit)")
+    parser.add_argument("--subscription", type=str, default=None, help="Azure Subscription ID to scan")
     parser.add_argument("--report", choices=["json", "html", "md", "sarif", "csv"], default="md", help="Output format (default: md)")
+    parser.add_argument("-o", "--output", type=str, default=None, help="Save report directly to output file path")
+    parser.add_argument("--fail-on", choices=["critical", "high", "medium", "low"], default=None, help="Exit with code 1 if findings meet or exceed this risk level (CI/CD gate)")
     parser.add_argument("--serve", action="store_true", help="Start the interactive REST API server and dashboard on port 8000")
     parser.add_argument("--port", type=int, default=8000, help="Port for the server (default: 8000)")
     args = parser.parse_args()
@@ -72,8 +77,8 @@ def main():
         start_server(port=args.port)
         return
 
-    if not args.aws and not args.azure and not args.mock:
-        print("Please specify at least one target to scan: --aws, --azure, or --mock (or --serve to start dashboard API)")
+    if not args.aws and not args.azure and not args.mock and not args.all:
+        print("Please specify at least one target to scan: --aws, --azure, --all, or --mock (or --serve to start dashboard API)")
         return
 
     all_findings = []
@@ -81,12 +86,12 @@ def main():
     if args.mock:
         all_findings.extend(generate_mock_findings())
     else:
-        if args.aws:
-            aws = AWSScanner()
+        if args.aws or args.all:
+            aws = AWSScanner(profile_name=args.profile)
             all_findings.extend(aws.scan_all())
         
-        if args.azure:
-            azure_scan = AzureScanner()
+        if args.azure or args.all:
+            azure_scan = AzureScanner(subscription_id=args.subscription)
             all_findings.extend(azure_scan.scan_all())
 
     # Evaluate risk score
@@ -97,20 +102,57 @@ def main():
     remediation_engine = RemediationEngine()
     evaluated_findings = remediation_engine.apply_remediation(evaluated_findings)
 
+    report_content = ""
     if args.report == "json":
         report = generate_json_report(evaluated_findings)
-        print(json.dumps(report, indent=4))
+        report_content = json.dumps(report, indent=4)
+        if args.output:
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(report_content)
+            print(f"JSON Report saved to: {args.output}")
+        else:
+            print(report_content)
     elif args.report == "html":
-        out_path = generate_html_report(evaluated_findings)
+        out_path = generate_html_report(evaluated_findings, output_path=args.output)
         print(f"HTML Report generated at: {out_path}")
     elif args.report == "sarif":
-        report = generate_sarif_report(evaluated_findings)
-        print(json.dumps(report, indent=2))
+        report = generate_sarif_report(evaluated_findings, output_path=args.output)
+        report_content = json.dumps(report, indent=2)
+        if args.output:
+            print(f"SARIF Report saved to: {args.output}")
+        else:
+            print(report_content)
     elif args.report == "csv":
-        report = generate_csv_report(evaluated_findings)
-        print(report)
+        report_content = generate_csv_report(evaluated_findings, output_path=args.output)
+        if args.output:
+            print(f"CSV Report saved to: {args.output}")
+        else:
+            print(report_content)
     else:
-        print_markdown(evaluated_findings)
+        if args.output:
+            import io
+            from contextlib import redirect_stdout
+            f_io = io.StringIO()
+            with redirect_stdout(f_io):
+                print_markdown(evaluated_findings)
+            with open(args.output, "w", encoding="utf-8") as f:
+                f.write(f_io.getvalue())
+            print(f"Markdown Report saved to: {args.output}")
+        else:
+            print_markdown(evaluated_findings)
+
+    if args.fail_on:
+        thresholds = {
+            "critical": ["Critical"],
+            "high": ["Critical", "High"],
+            "medium": ["Critical", "High", "Medium"],
+            "low": ["Critical", "High", "Medium", "Low"],
+        }
+        failing_levels = thresholds.get(args.fail_on.lower(), ["Critical"])
+        breaches = [f for f in evaluated_findings if f.get("risk_level") in failing_levels]
+        if breaches:
+            print(f"\n[CI GATE FAILED] {len(breaches)} findings breached risk threshold '{args.fail_on}'.", file=sys.stderr)
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

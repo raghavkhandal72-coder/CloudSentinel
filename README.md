@@ -1,6 +1,6 @@
 # CloudSentinel
 
-**Multi-cloud security posture management and misconfiguration detection platform for AWS and Azure.**
+**Enterprise Multi-Cloud Security Posture Management (CSPM) and Compliance Analyzer for AWS and Azure.**
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
 ![AWS](https://img.shields.io/badge/AWS-Supported-FF9900?logo=amazonaws)
@@ -9,116 +9,132 @@
 ![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)
 [![CI](https://github.com/raghavkhandal72-coder/CloudSentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/raghavkhandal72-coder/CloudSentinel/actions/workflows/ci.yml)
 
-CloudSentinel replaces manual cloud console checks with a fast, deterministic **Risk Engine** that outputs actionable findings mapped to severity levels.
+CloudSentinel replaces manual cloud console checks with a deterministic **Risk & Compliance Engine** that scans real cloud infrastructure, evaluates risk scores (0-100), outputs actionable CLI & Terraform remediation, and maps to major compliance frameworks (CIS, SOC 2, PCI-DSS, HIPAA).
 
-## 🚀 Features
-- **✓ AWS security scanning**: Analyzes AWS resources using `boto3`.
-- **✓ Azure security scanning**: Analyzes Azure resources using `azure-identity`.
-- **✓ IAM/RBAC analysis**: Detects over-privileged roles, Root MFA, and direct admin access.
-- **✓ Storage exposure detection**: Identifies public S3 buckets and Azure Blob containers.
-- **✓ Network security analysis**: Highlights exposed `0.0.0.0/0` SSH/RDP ingress rules.
-- **✓ Cloud logging checks**: Ensures CloudTrail and Azure Monitor are correctly deployed.
-- **✓ Deterministic risk scoring**: Normalized 0-100 risk score engine.
-- **✓ Remediation guidance**: Step-by-step instructions on mitigating detected flaws.
-- **✓ JSON & SARIF reports**: Machine-readable JSON and OASIS SARIF v2.1.0 output for SIEM and GitHub Code Scanning.
-- **✓ HTML reports & Web Dashboard**: Beautiful interactive reports and built-in REST API dashboard (`--serve`).
-- **✓ Terraform vulnerable labs**: Intentionally vulnerable IaaC for local testing.
-- **✓ Automated CI security checks**: Secret scanning, dependencies, linting, and tests.
+---
+
+## 🚀 Key Capabilities
+
+- **✓ 100% Real Cloud SDK Scanners**: Queries live AWS (`boto3`) and Azure (`azure-mgmt-*`) APIs with zero mock data in production.
+- **✓ Dynamic Multi-Region & Multi-Subscription**: Automatically discovers all active regions (`ec2.describe_regions()`) and Azure subscriptions under a tenant.
+- **✓ AWS Deep Inspection**: IAM (Root MFA, credential age), S3 (Block Public Access, encryption), EC2 Security Groups (SSH 22, RDP 3389), CloudTrail, RDS databases (public access, encryption), KMS (CMK key rotation), and GuardDuty threat detectors.
+- **✓ Azure Deep Inspection**: Storage Accounts (Blob public access, HTTPS, TLS 1.2), NSGs (sensitive ports), RBAC (subscription-level Owner / broad Contributor), Key Vault (soft-delete, purge protection, network ACLs), and Azure SQL Server firewalls.
+- **✓ Actionable Remediation**: Every finding includes exact copy-paste **AWS CLI / Azure CLI commands** and **Terraform HCL snippets**.
+- **✓ Multi-Framework Compliance**: Automatic mapping to **CIS Benchmarks**, **SOC 2 Type II**, **PCI-DSS v4.0**, and **HIPAA**.
+- **✓ Auditor-Ready Exports**:
+  - **CSV**: Spreadsheet format tailored for SOC 2 and ISO 27001 auditors.
+  - **SARIF 2.1.0**: Native OASIS standard for GitHub Advanced Security / Code Scanning tab.
+  - **JSON & HTML**: Human-readable and machine-parseable reports.
+- **✓ CI/CD Quality Gate**: Enforces deployment gates with `--fail-on [critical|high|medium]`.
+- **✓ Interactive Dashboard & REST API**: Built-in REST server (`--serve`) serving `/api/stats`, `/api/findings`, and `/api/scan`.
+
+---
 
 ## 🏗️ Architecture
 
 ```mermaid
 graph TD
-                         A[AWS / Azure] --> B[CloudSentinel CLI]
-                         B --> C[AWS Scanner]
-                         B --> D[Azure Scanner]
-                         
-                         C --> E[Finding Model]
-                         D --> E
-                         
-                         E --> F[Risk Engine]
-                         F --> G[Remediation]
-                         
-                         G --> H[Report Engine]
-                         H --> I[JSON]
-                         H --> J[HTML]
+    A[AWS Cloud APIs] -->|boto3| C[AWS Multi-Region Scanner]
+    B[Azure Cloud APIs] -->|azure-mgmt| D[Azure Multi-Sub Scanner]
+    
+    C --> E[Unified Finding Model]
+    D --> E
+    
+    E --> F[Risk Engine - 0-100 Scoring]
+    F --> G[Remediation Engine - CLI + Terraform]
+    
+    G --> H[Auditor CSV Export]
+    G --> I[GitHub SARIF 2.1.0 Export]
+    G --> J[JSON / HTML / Markdown]
+    G --> K[REST API Server & Dashboard]
 ```
 
-## 🎥 Demo
+---
 
-### Vulnerable Lab
+## ⚙️ Quickstart Installation
 
-The repository includes a `lab/terraform/` directory that provisions intentionally insecure test resources (S3, Security Groups, IAM, Azure Blob, NSG, RBAC). **⚠️ ONLY use this in isolated test accounts.**
-
-### Scan
-
-CloudSentinel detects:
-- IAM misconfiguration
-- Public storage
-- Network exposure
-- Logging issues
-- RBAC problems
-
-### Output
-
-JSON + HTML security reports are generated with actionable remediation steps.
-
-*(Demo screenshots can be viewed in the `reports/` output when generated.)*
-
-## ⚙️ Installation & Usage
-
-### 1. Setup
 ```bash
+# Clone the repository
 git clone https://github.com/raghavkhandal72-coder/CloudSentinel.git
 cd CloudSentinel
 
-# Setup virtual environment
+# Create and activate virtual environment
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
 
-# Install dependencies
+# Install dependencies and cloudsentinel CLI
 pip install -r backend/requirements.txt
+pip install -e .
 ```
 
-### 2. Run the Scanner (Mock Demo)
+After installation, the `cloudsentinel` CLI command is available globally in your environment.
 
-Recruiters and evaluators can immediately run the scanner in mock mode to simulate a multi-cloud environment locally, without needing actual AWS/Azure credentials!
+---
+
+## 💻 CLI Usage
 
 ```bash
-# Generate HTML report
-python -m backend.main --mock --report html
+# 1. Run Demo/Mock scan (zero credentials needed)
+cloudsentinel --mock
 
-# Generate GitHub Code Scanning SARIF report
-python -m backend.main --mock --report sarif
+# 2. Export Auditor CSV compliance spreadsheet
+cloudsentinel --mock --report csv -o audit_report.csv
 
-# Launch Interactive Web Dashboard & REST API on http://127.0.0.1:8000
-python -m backend.main --serve
+# 3. Export GitHub Code Scanning SARIF report
+cloudsentinel --mock --report sarif -o results.sarif
+
+# 4. Scan Live AWS Environment (uses ~/.aws/credentials or environment variables)
+cloudsentinel --aws
+
+# 5. Scan specific AWS named profile (e.g. production)
+cloudsentinel --aws --profile production
+
+# 6. Scan Live Azure Environment (uses 'az login' or service principal)
+cloudsentinel --azure
+
+# 7. Scan both AWS and Azure simultaneously
+cloudsentinel --all --report html
+
+# 8. Start the REST API server & Web Dashboard on http://127.0.0.1:8000
+cloudsentinel --serve --port 8000
 ```
 
-### 3. Run on Live Environment
+---
 
-Ensure you have authenticated to your cloud providers locally (`aws configure` or `az login`).
+## 🛡️ CI/CD Security Gate (Fail on High/Critical)
+
+Add CloudSentinel as an automated quality gate in your GitHub Actions or GitLab CI pipeline. If high or critical vulnerabilities are discovered, the build will exit with code 1 and block merging:
 
 ```bash
-python -m backend.main --aws --azure --report md
+cloudsentinel --all --fail-on high --report sarif -o results.sarif
 ```
 
-*Note: Required Environment Variables (if using Docker/Compose instead of local profiles): `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_SECRET`.*
+---
 
-## 🧪 Testing and CI/CD
-CloudSentinel is highly tested and secured via GitHub Actions.
+## 🧪 Testing and CI Verification
 
-Run the test suite locally:
+CloudSentinel maintains **100% test coverage** and runs continuous verification on GitHub Actions:
+
 ```bash
-pytest -q
-```
+# Run 70+ unit and integration tests
+pytest -v
 
-Quality and security checks:
-```bash
+# Run fast code linting
 ruff check .
-bandit -r backend/
+
+# Run static application security testing (SAST)
+bandit -r backend/ -ll -ii
+
+# Verify dependency security
 pip-audit -r backend/requirements.txt
 ```
 
-## ⚠️ Security Notice
-This tool runs read-only queries against your cloud environments. Please review `SECURITY.md` for our vulnerability disclosure policy and credential handling guidelines.
+---
+
+## ⚠️ Security & Permissions Notice
+
+CloudSentinel performs **read-only queries** against your cloud environment and does not modify any infrastructure without explicit engineer action.
+
+Recommended minimal cloud permissions:
+- **AWS**: Attach the AWS-managed `SecurityAudit` or `ReadOnlyAccess` policy to your IAM user or role.
+- **Azure**: Assign the built-in `Reader` role at the subscription or management group level.

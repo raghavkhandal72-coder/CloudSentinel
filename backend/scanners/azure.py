@@ -13,12 +13,17 @@ from .base import BaseScanner
 
 
 class AzureScanner(BaseScanner):
-    def __init__(self):
+    def __init__(self, subscription_id: str | None = None):
         super().__init__()
+        self.target_subscription_id = subscription_id
         try:
             self.credential = DefaultAzureCredential()
             self.sub_client = SubscriptionClient(self.credential)
-            self.subscriptions = list(self.sub_client.subscriptions.list())
+            if subscription_id:
+                sub_obj = type("SubscriptionItem", (), {"subscription_id": subscription_id})()
+                self.subscriptions = [sub_obj]
+            else:
+                self.subscriptions = list(self.sub_client.subscriptions.list())
             self.is_authenticated = bool(self.subscriptions)
         except Exception:  # noqa: BLE001
             self.is_authenticated = False

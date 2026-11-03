@@ -17,6 +17,9 @@ CloudSentinel replaces manual cloud console checks with a deterministic **Risk &
 ## 🚀 Key Capabilities
 
 - **✓ 100% Real Multi-Cloud SDK Scanners**: Queries live AWS (`boto3`), Azure (`azure-mgmt-*`), and GCP (`google-cloud-*`) APIs with zero mock data in production.
+- **✓ Kubernetes (K8s) CIS Benchmark Inspection**: Audits live manifests and workloads (Deployments, Pods, StatefulSets) for privileged containers, root execution, missing CPU/RAM limits, dangerous Linux capabilities, and host namespace sharing.
+- **✓ Security Drift & Baseline Regression Engine**: Compares scan snapshots against previous baselines (`--baseline`) to identify newly introduced regressions vs resolved issues in PRs.
+- **✓ Enterprise Webhook Alerts (Slack, Teams, SIEM)**: Dispatches executive posture cards, grade changes, and critical violation alerts to Slack, Microsoft Teams, or SIEM webhooks (`--notify-webhook`).
 - **✓ Dynamic Multi-Region & Multi-Subscription**: Automatically discovers all active regions (`ec2.describe_regions()`) and Azure subscriptions under a tenant.
 - **✓ AWS Deep Inspection**: IAM (Root MFA, credential age), S3 (Block Public Access, encryption), EC2 Security Groups (SSH 22, RDP 3389), CloudTrail, RDS databases (public access, encryption), KMS (CMK key rotation), and GuardDuty threat detectors.
 - **✓ Azure Deep Inspection**: Storage Accounts (Blob public access, HTTPS, TLS 1.2), NSGs (sensitive ports), RBAC (subscription-level Owner / broad Contributor), Key Vault (soft-delete, purge protection, network ACLs), and Azure SQL Server firewalls.
@@ -102,10 +105,19 @@ cloudsentinel --azure
 # 7. Scan Live Google Cloud Platform (GCP)
 cloudsentinel --gcp --project my-gcp-project-id
 
-# 8. Scan all configured clouds simultaneously (AWS + Azure + GCP)
+# 8. Audit Kubernetes Manifests or Helm templates against CIS Benchmark
+cloudsentinel --k8s ./k8s-manifests/
+
+# 9. Detect Security Drift against Baseline Snapshot & Fail on New Violations
+cloudsentinel --all --baseline baseline.json --fail-on-new high
+
+# 10. Dispatch Executive Scan Alerts to Slack or Microsoft Teams
+cloudsentinel --all --notify-webhook "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+
+# 11. Scan all configured clouds simultaneously (AWS + Azure + GCP)
 cloudsentinel --all --report html
 
-# 9. Start the REST API server & Web Dashboard on http://127.0.0.1:8000
+# 12. Start the REST API server & Web Dashboard on http://127.0.0.1:8000
 cloudsentinel --serve --port 8000
 ```
 

@@ -151,6 +151,36 @@ class RemediationEngine:
             "cli_command": "gcloud sql instances patch <instance-name> --no-assign-ip",
             "terraform": 'resource "google_sql_database_instance" "remediation" {\n  settings {\n    ip_configuration {\n      ipv4_enabled = false\n    }\n  }\n}'
         },
+        "k8s_privileged": {
+            "title": "Disable Privileged Execution in Container",
+            "steps": [
+                "Set securityContext.privileged to false in the container spec",
+                "Use Linux capabilities (e.g. NET_ADMIN) only if absolutely required rather than full host root access",
+                "Enforce Kubernetes Pod Security Standards (Restricted profile) via Admission Controllers"
+            ],
+            "cli_command": "kubectl patch deployment <name> -n <namespace> --type='json' -p='[{\"op\":\"replace\",\"path\":\"/spec/template/spec/containers/0/securityContext/privileged\",\"value\":false}]'",
+            "terraform": 'container {\n  name = "app"\n  security_context {\n    privileged = false\n  }\n}'
+        },
+        "k8s_root": {
+            "title": "Enforce Non-Root Execution for Kubernetes Workload",
+            "steps": [
+                "Set securityContext.runAsNonRoot: true in the pod or container spec",
+                "Specify a high-numbered UID via runAsUser (e.g. 10001)",
+                "Build container image using non-root USER directive in Dockerfile"
+            ],
+            "cli_command": "kubectl patch deployment <name> -n <namespace> --type='merge' -p '{\"spec\":{\"template\":{\"spec\":{\"securityContext\":{\"runAsNonRoot\":true,\"runAsUser\":10001}}}}}'",
+            "terraform": 'security_context {\n  run_as_non_root = true\n  run_as_user     = 10001\n}'
+        },
+        "k8s_resources": {
+            "title": "Set CPU & Memory Resource Limits",
+            "steps": [
+                "Define resources.limits.cpu and resources.limits.memory for all containers",
+                "Define resources.requests to allow Kubernetes scheduler to balance nodes properly",
+                "Implement LimitRange in the namespace to enforce default minimum/maximum bounds"
+            ],
+            "cli_command": "kubectl patch deployment <name> -n <namespace> --type='merge' -p '{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"app\",\"resources\":{\"limits\":{\"cpu\":\"500m\",\"memory\":\"512Mi\"}}}]}}}}}'",
+            "terraform": 'resources {\n  limits = {\n    cpu    = "500m"\n    memory = "512Mi"\n  }\n}'
+        },
         "default": {
             "title": "Manual Review Required",
             "steps": [
@@ -178,6 +208,13 @@ class RemediationEngine:
                     matched_key = "gcp_firewall"
                 elif "sql" in issue:
                     matched_key = "gcp_sql_public"
+            elif provider == "Kubernetes":
+                if "privileged" in issue:
+                    matched_key = "k8s_privileged"
+                elif "root" in issue:
+                    matched_key = "k8s_root"
+                elif "resource" in issue or "limit" in issue:
+                    matched_key = "k8s_resources"
             elif "public" in issue and ("bucket" in issue or "s3" in issue):
                 matched_key = "public_s3"
             elif "public blob" in issue:

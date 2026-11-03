@@ -12,10 +12,30 @@ class ComplianceEngine:
         "cis_aws": "CIS AWS Foundations Benchmark v3.0",
         "cis_azure": "CIS Microsoft Azure Benchmark v2.0",
         "cis_gcp": "CIS Google Cloud Platform Benchmark v2.0",
+        "cis_k8s": "CIS Kubernetes Benchmark v1.8",
         "soc2": "SOC 2 Type II Security Controls",
         "pci_dss": "PCI-DSS v4.0 Requirement Baseline",
         "hipaa": "HIPAA Security Rule (45 CFR §164.312)",
     }
+
+    @classmethod
+    def calculate_security_score(cls, findings: list[dict[str, Any]]) -> tuple[int, str]:
+        """
+        Calculates normalized security score (0-100) and posture grade (A+ through F).
+        Handles both title case ('Critical') and uppercase ('CRITICAL').
+        """
+        def _get_sev(f):
+            return str(f.get("risk_level", f.get("severity", ""))).upper()
+
+        crit = sum(1 for f in findings if _get_sev(f) == "CRITICAL")
+        high = sum(1 for f in findings if _get_sev(f) == "HIGH")
+        med = sum(1 for f in findings if _get_sev(f) == "MEDIUM")
+        low = sum(1 for f in findings if _get_sev(f) == "LOW")
+
+        penalty = (crit * 15) + (high * 8) + (med * 4) + (low * 1)
+        score = max(0, min(100, 100 - penalty))
+        grade = cls.calculate_posture_grade(score)
+        return score, grade
 
     @staticmethod
     def calculate_posture_grade(score: float) -> str:
@@ -55,6 +75,7 @@ class ComplianceEngine:
             "cis_aws": [],
             "cis_azure": [],
             "cis_gcp": [],
+            "cis_k8s": [],
             "soc2": [],
             "pci_dss": [],
             "hipaa": [],

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CloudSentinel Dashboard</title>
+    <title>CloudSentinel - Enterprise Multi-Cloud CSPM & Compliance Dashboard</title>
     
     <!-- React & ReactDOM -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -15,26 +15,31 @@
     <!-- CSS Styles -->
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --bg-card: #1e293b;
+            --bg-dark: #0a0f1d;
+            --bg-card: #151e32;
+            --bg-hover: #1c2742;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --critical: #ef4444;
             --high: #f97316;
             --medium: #eab308;
+            --low: #38bdf8;
             --passed: #22c55e;
-            --border: #334155;
+            --border: #23314e;
+            --accent: #6366f1;
         }
+
+        * { box-sizing: border-box; }
 
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background-color: var(--bg-dark);
             color: var(--text-main);
         }
 
-        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        .container { max-width: 1300px; margin: 0 auto; padding: 2rem 1.5rem; }
         
         .header {
             display: flex;
@@ -42,100 +47,195 @@
             align-items: center;
             margin-bottom: 2rem;
             border-bottom: 1px solid var(--border);
-            padding-bottom: 1rem;
+            padding-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
         }
 
-        .header h1 { margin: 0; color: #38bdf8; font-size: 2rem; }
-        .score-box { text-align: right; }
-        .score-value { font-size: 2.5rem; font-weight: bold; color: var(--passed); }
+        .brand-title { margin: 0; color: #38bdf8; font-size: 2.2rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; }
+        .brand-subtitle { color: var(--text-muted); margin: 0.3rem 0 0 0; font-size: 0.95rem; }
+
+        .score-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            background: var(--bg-card);
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .grade-badge {
+            font-size: 2.2rem;
+            font-weight: 900;
+            padding: 0.2rem 1rem;
+            border-radius: 8px;
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--passed);
+            border: 2px solid var(--passed);
+        }
+        .grade-B { color: #eab308; border-color: #eab308; background: rgba(234, 179, 8, 0.15); }
+        .grade-C { color: #f97316; border-color: #f97316; background: rgba(249, 115, 22, 0.15); }
+        .grade-D, .grade-F { color: var(--critical); border-color: var(--critical); background: rgba(239, 68, 68, 0.15); }
+
+        .score-value { font-size: 2rem; font-weight: bold; color: var(--text-main); }
+        .score-label { color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.25rem;
             margin-bottom: 2rem;
         }
 
         .metric-card {
             background-color: var(--bg-card);
-            padding: 1.5rem;
-            border-radius: 8px;
+            padding: 1.25rem;
+            border-radius: 10px;
             border: 1px solid var(--border);
             text-align: center;
+            transition: transform 0.15s ease;
         }
+        .metric-card:hover { transform: translateY(-2px); border-color: #3b82f6; }
 
-        .metric-title { color: var(--text-muted); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; }
-        .metric-value { font-size: 2rem; font-weight: bold; margin-top: 0.5rem; }
+        .metric-title { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+        .metric-value { font-size: 2.2rem; font-weight: 800; margin-top: 0.4rem; }
 
         .critical .metric-value { color: var(--critical); }
         .high .metric-value { color: var(--high); }
         .medium .metric-value { color: var(--medium); }
+        .low .metric-value { color: var(--low); }
         .passed .metric-value { color: var(--passed); }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .filter-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .filter-btn {
+            background: var(--bg-card);
+            color: var(--text-muted);
+            border: 1px solid var(--border);
+            padding: 0.4rem 0.9rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.15s ease;
+        }
+        .filter-btn:hover { background: var(--bg-hover); color: var(--text-main); }
+        .filter-btn.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+        .btn {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.55rem 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.15s ease;
+        }
+        .btn:hover { background-color: #1d4ed8; }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+        }
+        .btn-outline:hover { background: var(--bg-hover); border-color: #94a3b8; }
 
         .findings-table {
             width: 100%;
             border-collapse: collapse;
             background-color: var(--bg-card);
-            border-radius: 8px;
+            border-radius: 10px;
             overflow: hidden;
             border: 1px solid var(--border);
         }
 
         .findings-table th, .findings-table td {
-            padding: 1rem;
+            padding: 0.9rem 1rem;
             text-align: left;
             border-bottom: 1px solid var(--border);
         }
 
         .findings-table th {
-            background-color: rgba(0,0,0,0.2);
+            background-color: rgba(0,0,0,0.3);
             color: var(--text-muted);
             font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
         }
 
         .badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
+            padding: 0.25rem 0.65rem;
+            border-radius: 6px;
             font-size: 0.75rem;
-            font-weight: bold;
+            font-weight: 700;
+            display: inline-block;
         }
 
-        .badge-CRITICAL { background-color: rgba(239, 68, 68, 0.2); color: var(--critical); }
-        .badge-HIGH { background-color: rgba(249, 115, 22, 0.2); color: var(--high); }
-        .badge-MEDIUM { background-color: rgba(234, 179, 8, 0.2); color: var(--medium); }
-
-        .btn {
-            background-color: #3b82f6;
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .btn:hover { background-color: #2563eb; }
+        .badge-CRITICAL { background-color: rgba(239, 68, 68, 0.2); color: var(--critical); border: 1px solid rgba(239, 68, 68, 0.4); }
+        .badge-HIGH { background-color: rgba(249, 115, 22, 0.2); color: var(--high); border: 1px solid rgba(249, 115, 22, 0.4); }
+        .badge-MEDIUM { background-color: rgba(234, 179, 8, 0.2); color: var(--medium); border: 1px solid rgba(234, 179, 8, 0.4); }
+        .badge-LOW { background-color: rgba(56, 189, 248, 0.2); color: var(--low); border: 1px solid rgba(56, 189, 248, 0.4); }
+        .badge-provider { background: rgba(255,255,255,0.08); color: var(--text-main); font-family: monospace; }
 
         /* Modal Styles */
         .modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background-color: rgba(0,0,0,0.7);
+            background-color: rgba(0,0,0,0.8);
             display: flex; justify-content: center; align-items: center;
-            z-index: 50;
+            z-index: 100;
+            padding: 1rem;
         }
         .modal-content {
             background-color: var(--bg-card);
             padding: 2rem;
-            border-radius: 8px;
-            max-width: 800px;
+            border-radius: 12px;
+            max-width: 850px;
             width: 100%;
             max-height: 90vh;
             overflow-y: auto;
             border: 1px solid var(--border);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
         }
-        .modal-close { float: right; cursor: pointer; color: var(--text-muted); font-size: 1.5rem; }
+        .modal-close { float: right; cursor: pointer; color: var(--text-muted); font-size: 1.8rem; line-height: 1; }
+        .modal-close:hover { color: white; }
         .modal-section { margin-bottom: 1.5rem; }
-        .modal-section h4 { color: #38bdf8; margin-bottom: 0.5rem; }
-        pre { background-color: #0f172a; padding: 1rem; border-radius: 4px; overflow-x: auto; color: #a5b4fc; }
+        .modal-section h4 { color: #38bdf8; margin: 0 0 0.5rem 0; font-size: 1rem; }
+        pre {
+            background-color: #080c16;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            color: #a5b4fc;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        .code-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #111827;
+            padding: 0.4rem 0.8rem;
+            border-top-left-radius: 6px;
+            border-top-right-radius: 6px;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
     </style>
 </head>
 <body>
@@ -148,9 +248,13 @@
             const [stats, setStats] = useState(null);
             const [findings, setFindings] = useState([]);
             const [loading, setLoading] = useState(true);
+            const [scanning, setScanning] = useState(false);
             const [selectedFinding, setSelectedFinding] = useState(null);
+            const [filterProvider, setFilterProvider] = useState("ALL");
+            const [filterSeverity, setFilterSeverity] = useState("ALL");
+            const [copiedKey, setCopiedKey] = useState("");
 
-            const API_BASE = "http://127.0.0.1:8000/api";
+            const API_BASE = "/api";
 
             const loadData = async () => {
                 setLoading(true);
@@ -161,42 +265,88 @@
                     const findingsRes = await fetch(`${API_BASE}/findings`);
                     setFindings(await findingsRes.json());
                 } catch (e) {
-                    console.error("Failed to load data:", e);
+                    console.error("Failed to load CloudSentinel data:", e);
                 }
                 setLoading(false);
             };
 
-            const triggerScan = async () => {
+            const triggerScan = async (target = "mock") => {
+                setScanning(true);
                 try {
-                    await fetch(`${API_BASE}/scan`, { method: 'POST' });
+                    await fetch(`${API_BASE}/scan?target=${target}`, { method: 'POST' });
                     await loadData();
                 } catch (e) {
                     console.error("Scan failed:", e);
                 }
+                setScanning(false);
+            };
+
+            const copyToClipboard = (text, key) => {
+                navigator.clipboard.writeText(text);
+                setCopiedKey(key);
+                setTimeout(() => setCopiedKey(""), 2000);
             };
 
             useEffect(() => {
                 loadData();
             }, []);
 
-            if (loading) return <div className="container" style={{textAlign: 'center', marginTop: '5rem'}}><h2>Connecting to CloudSentinel Engine...</h2></div>;
+            if (loading) {
+                return (
+                    <div className="container" style={{textAlign: 'center', marginTop: '6rem'}}>
+                        <h2 style={{color: '#38bdf8'}}>Connecting to CloudSentinel Enterprise Engine...</h2>
+                        <p style={{color: 'var(--text-muted)'}}>Aggregating Multi-Cloud Security Findings</p>
+                    </div>
+                );
+            }
+
+            const filteredFindings = findings.filter(f => {
+                const prov = (f.cloud_provider || "").toUpperCase();
+                const sev = (f.risk_level || "").toUpperCase();
+
+                if (filterProvider !== "ALL" && !prov.includes(filterProvider)) return false;
+                if (filterSeverity !== "ALL" && sev !== filterSeverity) return false;
+                return true;
+            });
+
+            const gradeClass = `grade-${stats?.grade || 'A'}`;
 
             return (
                 <div className="container">
                     <header className="header">
                         <div>
-                            <h1>☁️ CloudSentinel</h1>
-                            <p style={{color: 'var(--text-muted)'}}>Multi-Cloud Security Posture Management</p>
+                            <h1 className="brand-title">🛡️ CloudSentinel</h1>
+                            <p className="brand-subtitle">Enterprise Multi-Cloud Security Posture Management & Compliance Engine</p>
                         </div>
-                        <div className="score-box">
-                            <div style={{color: 'var(--text-muted)'}}>Cloud Security Score</div>
-                            <div className="score-value">{stats?.score}/100</div>
+                        <div className="score-container">
+                            <div className={`grade-badge ${gradeClass}`}>{stats?.grade || 'A+'}</div>
+                            <div>
+                                <div className="score-label">Executive Security Score</div>
+                                <div className="score-value">{stats?.score}/100</div>
+                            </div>
                         </div>
                     </header>
 
-                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-                        <h2 style={{margin: 0}}>Posture Overview</h2>
-                        <button className="btn" onClick={triggerScan}>Run Cloud Audit</button>
+                    <div className="toolbar">
+                        <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap'}}>
+                            <button className="btn" disabled={scanning} onClick={() => triggerScan('mock')}>
+                                {scanning ? 'Scanning...' : '▶ Run Audit (Mock Lab)'}
+                            </button>
+                            <button className="btn btn-outline" disabled={scanning} onClick={() => triggerScan('all')}>
+                                ☁ Live Cloud Scan
+                            </button>
+                        </div>
+                        <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                            <a href="/api/export/csv" download className="btn btn-outline" style={{textDecoration: 'none'}}>
+                                📥 Export CSV
+                            </a>
+                            <a href="/api/export/sarif" download className="btn btn-outline" style={{textDecoration: 'none'}}>
+                                📥 Export SARIF
+                            </a>
+                            <a href="/api/export/json" download className="btn btn-outline" style={{textDecoration: 'none'}}>
+                                📥 Export JSON
+                            </a>
+                        </div>
                     </div>
 
                     <div className="metrics-grid">
@@ -213,36 +363,72 @@
                             <div className="metric-value">{stats?.medium}</div>
                         </div>
                         <div className="metric-card passed">
-                            <div className="metric-title">Passed Checks</div>
+                            <div className="metric-title">Clean Checks</div>
                             <div className="metric-value">{stats?.passed}</div>
                         </div>
                     </div>
 
-                    <h2>Active Security Findings</h2>
+                    <div className="toolbar" style={{marginTop: '2rem'}}>
+                        <div className="filter-group">
+                            <span style={{color: 'var(--text-muted)', fontSize: '0.85rem', alignSelf: 'center', marginRight: '0.25rem'}}>Provider:</span>
+                            {['ALL', 'AWS', 'AZURE', 'GCP', 'KUBERNETES'].map(p => (
+                                <button
+                                    key={p}
+                                    className={`filter-btn ${filterProvider === p ? 'active' : ''}`}
+                                    onClick={() => setFilterProvider(p)}
+                                >
+                                    {p}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="filter-group">
+                            <span style={{color: 'var(--text-muted)', fontSize: '0.85rem', alignSelf: 'center', marginRight: '0.25rem'}}>Severity:</span>
+                            {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM'].map(s => (
+                                <button
+                                    key={s}
+                                    className={`filter-btn ${filterSeverity === s ? 'active' : ''}`}
+                                    onClick={() => setFilterSeverity(s)}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
                     <table className="findings-table">
                         <thead>
                             <tr>
-                                <th>Risk</th>
+                                <th>Severity</th>
                                 <th>Provider</th>
-                                <th>Finding</th>
+                                <th>Finding & Violation</th>
                                 <th>Resource ID</th>
+                                <th>Benchmark</th>
                                 <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {findings.map(f => (
-                                <tr key={f.id}>
-                                    <td><span className={`badge badge-${f.risk_level}`}>{f.risk_level}</span></td>
-                                    <td>{f.cloud_provider}</td>
-                                    <td style={{fontWeight: '500'}}>{f.finding_title}</td>
-                                    <td style={{fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-muted)'}}>{f.resource_id}</td>
-                                    <td>
-                                        <button className="btn" style={{padding: '0.25rem 0.75rem', fontSize: '0.8rem'}} onClick={() => setSelectedFinding(f)}>
-                                            Investigate
-                                        </button>
+                            {filteredFindings.length === 0 ? (
+                                <tr>
+                                    <td colSpan="6" style={{textAlign: 'center', padding: '2rem', color: 'var(--text-muted)'}}>
+                                        No violations found matching the selected filters.
                                     </td>
                                 </tr>
-                            ))}
+                            ) : (
+                                filteredFindings.map(f => (
+                                    <tr key={f.id}>
+                                        <td><span className={`badge badge-${f.risk_level}`}>{f.risk_level}</span></td>
+                                        <td><span className="badge badge-provider">{f.cloud_provider}</span></td>
+                                        <td style={{fontWeight: '500', maxWidth: '350px'}}>{f.finding_title}</td>
+                                        <td style={{fontFamily: 'monospace', fontSize: '0.85rem', color: 'var(--text-muted)'}}>{f.resource_id}</td>
+                                        <td style={{fontSize: '0.85rem', color: '#93c5fd'}}>{f.cis_benchmark}</td>
+                                        <td>
+                                            <button className="btn" style={{padding: '0.3rem 0.8rem', fontSize: '0.8rem'}} onClick={() => setSelectedFinding(f)}>
+                                                Investigate
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
 
@@ -250,34 +436,63 @@
                         <div className="modal-overlay" onClick={() => setSelectedFinding(null)}>
                             <div className="modal-content" onClick={e => e.stopPropagation()}>
                                 <span className="modal-close" onClick={() => setSelectedFinding(null)}>&times;</span>
-                                <h2 style={{marginTop: 0, color: 'var(--text-main)'}}>
-                                    <span className={`badge badge-${selectedFinding.risk_level}`} style={{marginRight: '1rem'}}>{selectedFinding.risk_level}</span>
+                                <h2 style={{marginTop: 0, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+                                    <span className={`badge badge-${selectedFinding.risk_level}`}>{selectedFinding.risk_level}</span>
                                     {selectedFinding.finding_title}
                                 </h2>
                                 
                                 <div className="modal-section">
-                                    <h4>Resource ID</h4>
-                                    <div style={{fontFamily: 'monospace', color: 'var(--text-muted)'}}>{selectedFinding.resource_id}</div>
+                                    <h4>Resource Identifier</h4>
+                                    <div style={{fontFamily: 'monospace', background: 'rgba(0,0,0,0.3)', padding: '0.5rem 0.8rem', borderRadius: '4px', color: '#93c5fd'}}>
+                                        {selectedFinding.resource_id}
+                                    </div>
                                 </div>
                                 
                                 <div className="modal-section">
-                                    <h4>Why It Matters</h4>
-                                    <p>{selectedFinding.why_it_matters}</p>
+                                    <h4>Risk Exposure & Impact</h4>
+                                    <p style={{margin: 0, color: 'var(--text-muted)', lineHeight: '1.5'}}>{selectedFinding.why_it_matters}</p>
                                 </div>
 
                                 <div className="modal-section">
-                                    <h4>Configuration Evidence (JSON)</h4>
+                                    <h4>Configuration Evidence</h4>
                                     <pre>{selectedFinding.evidence}</pre>
                                 </div>
 
-                                <div className="modal-section">
-                                    <h4>CIS Benchmark</h4>
-                                    <div style={{color: 'var(--medium)', fontWeight: 'bold'}}>{selectedFinding.cis_benchmark}</div>
-                                </div>
+                                {selectedFinding.cli_remediation && (
+                                    <div className="modal-section">
+                                        <div className="code-header">
+                                            <span>Actionable CLI Remediation</span>
+                                            <button 
+                                                className="filter-btn" 
+                                                style={{padding: '0.15rem 0.5rem', fontSize: '0.75rem'}}
+                                                onClick={() => copyToClipboard(selectedFinding.cli_remediation, 'cli')}
+                                            >
+                                                {copiedKey === 'cli' ? '✓ Copied' : 'Copy Command'}
+                                            </button>
+                                        </div>
+                                        <pre style={{borderTopLeftRadius: 0, borderTopRightRadius: 0}}>{selectedFinding.cli_remediation}</pre>
+                                    </div>
+                                )}
 
-                                <div className="modal-section" style={{backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '1rem', borderRadius: '4px', border: '1px solid var(--passed)'}}>
-                                    <h4 style={{color: 'var(--passed)', marginTop: 0}}>Remediation Steps</h4>
-                                    <p style={{margin: 0}}>{selectedFinding.remediation}</p>
+                                {selectedFinding.terraform_remediation && (
+                                    <div className="modal-section">
+                                        <div className="code-header">
+                                            <span>Infrastructure as Code (Terraform / YAML) Fix</span>
+                                            <button 
+                                                className="filter-btn" 
+                                                style={{padding: '0.15rem 0.5rem', fontSize: '0.75rem'}}
+                                                onClick={() => copyToClipboard(selectedFinding.terraform_remediation, 'tf')}
+                                            >
+                                                {copiedKey === 'tf' ? '✓ Copied' : 'Copy Code'}
+                                            </button>
+                                        </div>
+                                        <pre style={{borderTopLeftRadius: 0, borderTopRightRadius: 0}}>{selectedFinding.terraform_remediation}</pre>
+                                    </div>
+                                )}
+
+                                <div className="modal-section" style={{backgroundColor: 'rgba(34, 197, 94, 0.1)', padding: '1rem', borderRadius: '6px', border: '1px solid var(--passed)'}}>
+                                    <h4 style={{color: 'var(--passed)', marginTop: 0}}>Remediation Guidance</h4>
+                                    <p style={{margin: 0, fontSize: '0.9rem'}}>{selectedFinding.remediation}</p>
                                 </div>
                             </div>
                         </div>

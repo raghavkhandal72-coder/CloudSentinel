@@ -247,6 +247,7 @@
         function App() {
             const [stats, setStats] = useState(null);
             const [findings, setFindings] = useState([]);
+            const [attackPaths, setAttackPaths] = useState([]);
             const [loading, setLoading] = useState(true);
             const [scanning, setScanning] = useState(false);
             const [selectedFinding, setSelectedFinding] = useState(null);
@@ -264,6 +265,9 @@
 
                     const findingsRes = await fetch(`${API_BASE}/findings`);
                     setFindings(await findingsRes.json());
+
+                    const apRes = await fetch(`${API_BASE}/attack-paths`);
+                    setAttackPaths(await apRes.json());
                 } catch (e) {
                     console.error("Failed to load CloudSentinel data:", e);
                 }
@@ -337,14 +341,20 @@
                             </button>
                         </div>
                         <div style={{display: 'flex', gap: '0.5rem', flexWrap: 'wrap'}}>
+                            <a href="/api/autofix/sh" download="cloudsentinel_remediation.sh" className="btn btn-outline" style={{textDecoration: 'none', borderColor: '#22c55e', color: '#86efac'}}>
+                                ⚡ Auto-Fix Script (.sh)
+                            </a>
+                            <a href="/api/autofix/tf" download="cloudsentinel_remediation.tf" className="btn btn-outline" style={{textDecoration: 'none', borderColor: '#8b5cf6', color: '#c4b5fd'}}>
+                                ⚡ Terraform Fix (.tf)
+                            </a>
                             <a href="/api/export/csv" download className="btn btn-outline" style={{textDecoration: 'none'}}>
-                                📥 Export CSV
+                                📥 CSV
                             </a>
                             <a href="/api/export/sarif" download className="btn btn-outline" style={{textDecoration: 'none'}}>
-                                📥 Export SARIF
+                                📥 SARIF
                             </a>
                             <a href="/api/export/json" download className="btn btn-outline" style={{textDecoration: 'none'}}>
-                                📥 Export JSON
+                                📥 JSON
                             </a>
                         </div>
                     </div>
@@ -367,6 +377,60 @@
                             <div className="metric-value">{stats?.passed}</div>
                         </div>
                     </div>
+
+                    {attackPaths.length > 0 && (
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.4)',
+                            borderRadius: '12px',
+                            padding: '1.5rem',
+                            marginBottom: '2rem',
+                            boxShadow: '0 0 20px rgba(239, 68, 68, 0.15)'
+                        }}>
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
+                                <h3 style={{margin: 0, color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.6rem'}}>
+                                    <span>🚨</span> Correlated Toxic Attack Paths (Cloud Kill-Chain Analysis)
+                                </h3>
+                                <span className="badge badge-CRITICAL">{attackPaths.length} Active Attack Vectors</span>
+                            </div>
+                            <p style={{margin: '0 0 1.25rem 0', color: 'var(--text-muted)', fontSize: '0.9rem'}}>
+                                Multi-finding attack correlation identified active paths where open ingress, excessive permissions, and data assets combine into complete compromise vectors.
+                            </p>
+                            <div style={{display: 'grid', gap: '1rem'}}>
+                                {attackPaths.map(ap => (
+                                    <div key={ap.id} style={{
+                                        background: 'rgba(15, 23, 42, 0.8)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '8px',
+                                        padding: '1rem',
+                                    }}>
+                                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem'}}>
+                                            <strong style={{color: '#fca5a5', fontSize: '1rem'}}>{ap.id}: {ap.title}</strong>
+                                            <span style={{fontSize: '0.8rem', background: '#dc2626', color: 'white', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 'bold'}}>
+                                                Risk Score: {ap.risk_score}/100
+                                            </span>
+                                        </div>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', fontSize: '0.85rem'}}>
+                                            <span style={{background: '#1e293b', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #334155'}}>
+                                                🌐 Entry: <strong>{ap.entry_point}</strong>
+                                            </span>
+                                            <span style={{color: '#f87171'}}>➔</span>
+                                            <span style={{background: '#1e293b', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #334155'}}>
+                                                🔑 Bridge: <strong>{ap.privilege_bridge}</strong>
+                                            </span>
+                                            <span style={{color: '#f87171'}}>➔</span>
+                                            <span style={{background: '#1e293b', padding: '0.4rem 0.75rem', borderRadius: '6px', border: '1px solid #ef4444', color: '#fca5a5'}}>
+                                                💎 Crown Jewel: <strong>{ap.crown_jewel}</strong>
+                                            </span>
+                                        </div>
+                                        <div style={{fontSize: '0.85rem', color: '#86efac', background: 'rgba(34, 197, 94, 0.1)', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid rgba(34, 197, 94, 0.3)'}}>
+                                            <strong>Break Attack Chain:</strong> {ap.remediation_priority}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="toolbar" style={{marginTop: '2rem'}}>
                         <div className="filter-group">

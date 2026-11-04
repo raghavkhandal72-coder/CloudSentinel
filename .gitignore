@@ -29,3 +29,4 @@ azure_credentials.json
 build/
 dist/
 .pytest_cache/
+cloudsentinel_remediation.*

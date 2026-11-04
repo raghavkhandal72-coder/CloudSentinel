@@ -17,6 +17,8 @@ CloudSentinel replaces manual cloud console checks with a deterministic **Risk &
 ## 🚀 Key Capabilities
 
 - **✓ 100% Real Multi-Cloud SDK Scanners**: Queries live AWS (`boto3`), Azure (`azure-mgmt-*`), and GCP (`google-cloud-*`) APIs with zero mock data in production.
+- **✓ Graph-Based Toxic Attack Path Analysis**: Correlates multi-service findings into complete kill-chain vectors (Internet Ingress -> IAM Privilege Escalation -> Crown Jewel Data Exfiltration) with ASCII and Mermaid attack flow diagrams.
+- **✓ Automated Self-Healing Auto-Fix Bundle**: Generates executable bash scripts (`cloudsentinel_remediation.sh`) and Terraform HCL manifests (`cloudsentinel_remediation.tf`) with `--generate-fix` to resolve misconfigurations instantly.
 - **✓ Kubernetes (K8s) CIS Benchmark Inspection**: Audits live manifests and workloads (Deployments, Pods, StatefulSets) for privileged containers, root execution, missing CPU/RAM limits, dangerous Linux capabilities, and host namespace sharing.
 - **✓ Security Drift & Baseline Regression Engine**: Compares scan snapshots against previous baselines (`--baseline`) to identify newly introduced regressions vs resolved issues in PRs.
 - **✓ Enterprise Webhook Alerts (Slack, Teams, SIEM)**: Dispatches executive posture cards, grade changes, and critical violation alerts to Slack, Microsoft Teams, or SIEM webhooks (`--notify-webhook`).

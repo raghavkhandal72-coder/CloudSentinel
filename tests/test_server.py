@@ -72,3 +72,21 @@ def test_api_handler_routes():
     handler.path = "/api/export/sarif"
     handler.do_GET()
     assert handler.send_response.called
+
+    # Test /api/attack-paths
+    handler.send_response.reset_mock()
+    handler.path = "/api/attack-paths"
+    handler.do_GET()
+    assert handler.send_response.called
+
+    # Test /api/autofix/sh
+    handler.send_response.reset_mock()
+    handler.path = "/api/autofix/sh"
+    handler.do_GET()
+    assert handler.send_response.called
+
+    # Test /api/autofix/tf
+    handler.send_response.reset_mock()
+    handler.path = "/api/autofix/tf"
+    handler.do_GET()
+    assert handler.send_response.called

@@ -9,6 +9,7 @@ _project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
+from backend.engine.autofix import AutoFixEngine
 from backend.engine.drift import DriftEngine
 from backend.engine.remediation import RemediationEngine
 from backend.engine.risk import RiskEngine
@@ -79,6 +80,7 @@ def main():
     parser.add_argument("--fail-on", choices=["critical", "high", "medium", "low"], default=None, help="Exit with code 1 if findings meet or exceed this risk level (CI/CD gate)")
     parser.add_argument("--fail-on-new", choices=["critical", "high", "medium", "low"], default=None, help="Exit with code 1 if NEW regression findings meet or exceed this risk level")
     parser.add_argument("--notify-webhook", type=str, default=None, help="Webhook URL (Slack, MS Teams, SIEM) to dispatch scan alerts")
+    parser.add_argument("--generate-fix", action="store_true", help="Generate automated shell (.sh) and Terraform (.tf) remediation scripts")
     parser.add_argument("--serve", action="store_true", help="Start the interactive REST API server and dashboard on port 8000")
     parser.add_argument("--port", type=int, default=8000, help="Port for the server (default: 8000)")
     args = parser.parse_args()
@@ -189,6 +191,14 @@ def main():
         target_label = "k8s" if args.k8s else ("aws" if args.aws else ("azure" if args.azure else ("gcp" if args.gcp else "all")))
         res = WebhookNotifier.send_notification(webhook_url, evaluated_findings, cloud_target=target_label)
         print(f"[NOTIFICATION] Dispatched alert to webhook: status={res.get('status')}")
+
+    # Automated Remediation Script Generation
+    if args.generate_fix:
+        autofix_engine = AutoFixEngine()
+        out_files = autofix_engine.save_remediation_scripts(evaluated_findings)
+        print("\n[AUTO-FIX] Generated automated remediation bundle:")
+        for fp in out_files:
+            print(f"  -> {fp}")
 
     if args.fail_on:
         thresholds = {

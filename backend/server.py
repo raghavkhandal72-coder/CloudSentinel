@@ -4,6 +4,8 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
+from backend.engine.attack_path import AttackPathEngine
+from backend.engine.autofix import AutoFixEngine
 from backend.engine.compliance import ComplianceEngine
 from backend.engine.remediation import RemediationEngine
 from backend.engine.risk import RiskEngine
@@ -129,6 +131,44 @@ class CloudSentinelAPIHandler(BaseHTTPRequestHandler):
             raw_findings = [f.get("raw", f) for f in _cached_findings]
             compliance_data = ComplianceEngine().evaluate_compliance(raw_findings)
             self._send_json(compliance_data)
+            return
+
+        if path in ["/api/attack-paths", "/api/attack-paths/"]:
+            if not _cached_findings:
+                run_scan("mock")
+            raw_findings = [f.get("raw", f) for f in _cached_findings]
+            attack_paths = AttackPathEngine().correlate_attack_paths(raw_findings)
+            self._send_json(attack_paths)
+            return
+
+        if path in ["/api/autofix/sh", "/api/autofix/sh/"]:
+            if not _cached_findings:
+                run_scan("mock")
+            raw_findings = [f.get("raw", f) for f in _cached_findings]
+            sh_data, _ = AutoFixEngine().generate_remediation_bundle(raw_findings)
+            sh_bytes = sh_data.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/x-sh; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="cloudsentinel_remediation.sh"')
+            self.send_header("Content-Length", str(len(sh_bytes)))
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(sh_bytes)
+            return
+
+        if path in ["/api/autofix/tf", "/api/autofix/tf/"]:
+            if not _cached_findings:
+                run_scan("mock")
+            raw_findings = [f.get("raw", f) for f in _cached_findings]
+            _, tf_data = AutoFixEngine().generate_remediation_bundle(raw_findings)
+            tf_bytes = tf_data.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Disposition", 'attachment; filename="cloudsentinel_remediation.tf"')
+            self.send_header("Content-Length", str(len(tf_bytes)))
+            self._send_cors_headers()
+            self.end_headers()
+            self.wfile.write(tf_bytes)
             return
 
         if path in ["/api/findings", "/api/findings/"]:

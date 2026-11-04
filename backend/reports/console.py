@@ -8,6 +8,7 @@ import os
 import sys
 from typing import Any
 
+from backend.engine.attack_path import AttackPathEngine
 from backend.engine.compliance import ComplianceEngine
 
 # Ensure stdout handles encoding gracefully on all operating systems
@@ -90,6 +91,18 @@ class ConsoleReporter:
         fw_line = f"|  Compliance: {fw_summary}"
         print(self._c(f"{fw_line:<79}|", self.CYAN))
         print(self._c(border + "\n", self.BLUE))
+
+        # Correlated Toxic Attack Paths
+        attack_paths = AttackPathEngine().correlate_attack_paths(findings)
+        if attack_paths:
+            print(self._c("=== CORRELATED TOXIC ATTACK PATHS (KILL-CHAIN) ================================", self.BOLD, self.RED))
+            for ap in attack_paths:
+                print(f"\n{self._c('🚨 [' + ap['id'] + ']', self.BOLD, self.RED)} {self._c(ap['title'], self.BOLD, self.WHITE)}")
+                print(f"    {self._c('Remediation Priority:', self.BOLD, self.GREEN)} {ap['remediation_priority']}")
+                print(f"    {self._c('Attack Kill-Chain Flow:', self.BOLD, self.YELLOW)}")
+                for line in ap["ascii_diagram"].split("\n"):
+                    print(f"      {self._c(line, self.RED)}")
+            print("\n" + self._c("-" * 80, self.DIM) + "\n")
 
         print(self._c("=== DETAILED FINDINGS & REMEDIATION ============================================", self.BOLD, self.WHITE))
 

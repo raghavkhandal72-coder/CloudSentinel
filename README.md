@@ -119,7 +119,35 @@ cloudsentinel --all --report html
 
 # 12. Start the REST API server & Web Dashboard on http://127.0.0.1:8000
 cloudsentinel --serve --port 8000
+
+# 13. Run Model Context Protocol (MCP) Server for AI Agents (Claude Desktop, Cursor, Antigravity)
+cloudsentinel-mcp
 ```
+
+---
+
+## 🤖 Model Context Protocol (MCP) Integration for AI Agents
+
+CloudSentinel includes a native **Model Context Protocol (MCP)** server, enabling AI Coding Agents, Security Analysts, and LLMs (Claude Desktop, Cursor, Antigravity, VS Code) to directly audit cloud security posture, check compliance frameworks, and generate remediation code.
+
+### Add to Claude Desktop (`claude_desktop_config.json`) or Cursor:
+
+```json
+{
+  "mcpServers": {
+    "cloudsentinel": {
+      "command": "cloudsentinel-mcp"
+    }
+  }
+}
+```
+
+### Available MCP Tools for Agents:
+- `cloudsentinel_scan(target)`: Triggers security audit on `aws`, `azure`, `gcp`, `k8s`, or `mock`.
+- `cloudsentinel_get_posture()`: Returns executive letter grade ($A^+$ to $F$) and normalized score ($0-100$).
+- `cloudsentinel_get_compliance(framework)`: Audits compliance against CIS v3.0, SOC 2, PCI-DSS, or HIPAA.
+- `cloudsentinel_get_remediation(issue_type)`: Retrieves exact CLI commands and Terraform HCL snippets.
+- `cloudsentinel_detect_drift(baseline)`: Identifies new security regressions against a previous baseline.
 
 ---
 

@@ -24,6 +24,7 @@ dependencies = [
 
 [project.scripts]
 cloudsentinel = "backend.main:main"
+cloudsentinel-mcp = "backend.mcp.server:main"
 
 [tool.setuptools.packages.find]
 include = ["backend*"]
